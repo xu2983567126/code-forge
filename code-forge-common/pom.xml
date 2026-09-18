@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.xly</groupId>
+        <artifactId>code-forge</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>code-forge-common</artifactId>
+    <name>code-forge-common</name>
+    <description>公共模块：统一响应体 / 错误码 / 异常 / 常量 / 注解 / 全局异常处理 / 通用横切配置</description>
+
+    <dependencies>
+        <!-- GlobalExceptionHandler 使用 @RestControllerAdvice / @ExceptionHandler；
+             通用配置类使用 @ConditionalOnClass（spring-boot-autoconfigure） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <!-- StringUtils / ObjectUtils -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!--
+          仅用于编译 MyBatisPlusConfig（分页拦截器）。
+          scope=provided：不向下游传递，运行时由各连库服务自带的
+          mybatis-plus-spring-boot4-starter 提供；不连库的 judge-service 本就没有 MP，
+          配置类上的 @ConditionalOnClass 会整体跳过它。
+        -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-annotation</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-extension</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <!-- PaginationInnerInterceptor 自 MP 3.5.9 起被拆到了这个模块 -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-jsqlparser</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <!-- Sa-Token API（StpUtil 门面）：仅编译用，运行期由下游服务的 starter 提供自动配置。
+             common 被不连库的 judge-service 依赖，这里只引 core（无自动配置、不初始化即无害）。 -->
+        <dependency>
+            <groupId>cn.dev33</groupId>
+            <artifactId>sa-token-core</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>

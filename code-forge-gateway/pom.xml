@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.xly</groupId>
+        <artifactId>code-forge</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>code-forge-gateway</artifactId>
+    <name>code-forge-gateway</name>
+    <description>网关：统一入口 / 路由转发 / 登录态解析（8101）</description>
+
+    <dependencies>
+        <!-- Spring Cloud Gateway 的 WebFlux 形态（Reactive 栈，基于 Netty，非 Servlet） -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-gateway-server-webflux</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
+        <!-- 路由里的 lb:// 需要负载均衡器；网关回调 user-service 也是用它挑实例 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-loadbalancer</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>com.xly</groupId>
+            <artifactId>code-forge-common</artifactId>
+            <!-- 网关是 WebFlux（Reactive）栈，必须排除 common 传递来的 Servlet/MVC 栈，
+                 否则 Spring Cloud Gateway 报 "Spring MVC found on classpath" 启动失败。
+                 网关只用到 common 的纯常量（UserHeaderConstants）与 ThreadLocal 持有器，不需要 Web 运行时。 -->
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-web</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- 反序列化 user-service 返回的 User -->
+        <dependency>
+            <groupId>com.xly</groupId>
+            <artifactId>code-forge-model</artifactId>
+        </dependency>
+        <!-- 登录态解析用 LoadBalancerClient + RestClient，不需要 openfeign / service-client -->
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- 聚合文档：nextdoc4j 网关聚合 Starter + springdoc webflux UI（统一入口 /doc.html）。
+             nextdoc4j 把 webflux/webmvc 网关与两套 springdoc UI 均标 optional，由本工程自引 webflux 形态。 -->
+        <dependency>
+            <groupId>top.nextdoc4j</groupId>
+            <artifactId>nextdoc4j-gateway-spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
+        </dependency>
+        <!-- nextdoc4j 的部分类在字节码层面引用了 jakarta.servlet.Filter（即使运行在 WebFlux 栈），
+             缺它会在 refresh 阶段报 NoClassDefFoundError: jakarta/servlet/Filter。
+             这里只补 Servlet API（provided，纯接口 jar，不含 Tomcat 容器），
+             不会触发 Spring Cloud Gateway 的 "Spring MVC found on classpath" 判断。 -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

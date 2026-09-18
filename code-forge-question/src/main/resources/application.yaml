@@ -1,0 +1,55 @@
+spring:
+  application:
+    name: code-forge-question
+  # 服务注册
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+  # 数据库配置（todo 按本机实际情况替换）
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/myoj
+    username: root
+    password: 123456
+  # Sa-Token 用 Redis 中心化存储登录态（必须，否则默认内存→分布式失效）
+  data:
+    redis:
+      host: 127.0.0.1            # 实测可通（WSL 镜像网络，Windows 侧直连即可）
+      port: 6379
+      database: 0
+
+server:
+  address: 0.0.0.0
+  port: 8103
+  servlet:
+    context-path: /api/question
+
+mybatis-plus:
+  configuration:
+    # true：DB 列 snake_case（user_id）自动映射到 Java 字段驼峰（userId）。
+    # Java 侧字段名 / VO / DTO / 前端 JSON 保持驼峰不变。
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      logic-delete-field: isDelete # 全局逻辑删除的实体字段名
+      logic-delete-value: 1 # 逻辑已删除值（默认为 1）
+      logic-not-delete-value: 0 # 逻辑未删除值（默认为 0）
+
+# ===== Sa-Token 登录态 =====
+# token-name 与 token 读取策略必须与 user-service 完全一致，否则读不到同一份登录态。
+# 登录态存在 Redis，各服务 StpUtil 直读同一 token → 天然跨服务共享。
+sa-token:
+  token-name: satoken            # 必须与 user-service 一致
+  timeout: 2592000               # token 有效期 30 天（与 user-service 一致）
+  active-timeout: -1
+  is-concurrent: true
+  is-share: true
+  token-style: uuid
+  is-read-cookie: true           # 从 cookie 读 token（前端 Vite proxy 同源自动带）
+  is-read-header: true           # 也支持 header: satoken=xxx
+  is-write-cookie: false         # 本服务不产生登录，故不写 cookie（写 cookie 只在 user-service）
+  cookie:
+    domain: ""
+    samesite: Lax

@@ -1,0 +1,49 @@
+spring:
+  application:
+    name: code-forge-gateway
+  cloud:
+    # 服务注册与发现
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+    # 路由表：uri 用 lb:// 走 Nacos 服务发现 + 负载均衡
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: user-service
+              uri: lb://code-forge-user
+              predicates:
+                - Path=/api/user/**
+            # dashboard 聚合接口落在 user-service 上（见 DashboardService 类注释：
+            # 用户域是它的自然归属地，题目域/提交域的数据经 /inner/stats 汇总过来）。
+            # 单独一条路由是为了让前端路径语义清晰，且将来真要抽独立服务时
+            # 只改这一条 uri，无需动前端。
+            - id: dashboard
+              uri: lb://code-forge-user
+              predicates:
+                - Path=/api/dashboard/**
+            - id: question-service
+              uri: lb://code-forge-question
+              predicates:
+                - Path=/api/question/**
+            - id: submission-service
+              uri: lb://code-forge-submission
+              predicates:
+                - Path=/api/submission/**
+            - id: judge-service
+              uri: lb://code-forge-judge
+              predicates:
+                - Path=/api/judge/**
+
+server:
+  port: 8101
+
+# 聚合文档（nextdoc4j）：自动发现网关路由 + Nacos 服务，聚合各服务 /v3/api-docs，统一入口 /doc.html。
+# 注意：顶层 nextdoc4j.enabled 必须为 true（NextDoc4jProperties 默认为 false），
+# 否则 NextDoc4jWebFluxDocPathFilter 会把默认 /doc.html 直接判 404 隐藏掉。
+nextdoc4j:
+  enabled: true
+  gateway:
+    enabled: true
+    auto-discovery: true

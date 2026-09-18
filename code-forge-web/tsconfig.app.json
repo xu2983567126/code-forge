@@ -1,0 +1,29 @@
+{
+  "extends": "@vue/tsconfig/tsconfig.dom.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "types": ["vite/client"],
+
+    /* 路径别名：vue-tsc 不读 vite alias，必须在此声明，否则 @/* 报 TS2307 */
+    /* baseUrl 已在 TS7 废弃，paths 相对本 tsconfig 位置解析（code-forge-web/） */
+    "paths": {
+      "@/*": ["./src/*"],
+      "@generated": ["./generated/index.ts"],
+      "@generated/*": ["./generated/*"]
+    },
+
+    /* Linting */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.vue",
+    "src/**/*.d.ts"
+  ],
+  // 测试文件由 vitest 运行，不纳入应用构建的类型检查（避免 @vue/test-utils 缺失阻塞 build）
+  "exclude": ["**/*.spec.ts"]
+}

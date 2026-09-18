@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.xly</groupId>
+        <artifactId>code-forge</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>code-forge-model</artifactId>
+    <name>code-forge-model</name>
+    <description>数据模型：实体 / DTO / VO / 枚举 / 判题模型</description>
+
+    <dependencies>
+        <!-- 实体注解 @TableName / @TableId / @TableLogic。
+             这里刻意用 annotation 而不是 boot-starter：starter 会带入
+             spring-boot-starter-jdbc + HikariCP 的数据源自动配置，
+             而 judge-service 不连库，被传递依赖拖上会直接启动失败。 -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-annotation</artifactId>
+        </dependency>
+        <!-- JSONUtil：judgeConfig / judgeCase 的序列化 -->
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+        </dependency>
+        <!-- BeanUtils -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-beans</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>com.xly</groupId>
+            <artifactId>code-forge-common</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>

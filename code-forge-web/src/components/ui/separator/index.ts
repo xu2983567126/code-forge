@@ -1,0 +1,8 @@
+/**
+ * Re-export shim — the canonical `Separator` lives in
+ * `@ulticode/design-system/components/separator/`.
+ * The console's `import { Separator } from '@/components/ui/separator'`
+ * contract is preserved so consumers don't change.
+ */
+export { default as Separator } from '@/components/ui/separator/Separator.vue'
+export { default } from '@/components/ui/separator/Separator.vue'

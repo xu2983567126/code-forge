@@ -1,0 +1,28 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# OpenAPI 合并产物：每次由 scripts/merge-openapi.mjs 从各服务重新抓取，
+# 属中间产物不入库。（generated/ 是最终 SDK，需要入库以供离线构建。）
+openapi-merged.json
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

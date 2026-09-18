@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>code-forge-web</title>
+    <script>
+      // 防 FOUC：主题必须在首屏样式生效前落到 <html> 上，否则暗色用户刷新会闪一次白。
+      // 判据与 src/lib/theme/index.ts 一致（同一存储键 + 同一三态解析规则），改一处必须改两处。
+      ;(function () {
+        try {
+          var mode = localStorage.getItem('code-forge-theme')
+          if (mode !== 'light' && mode !== 'dark' && mode !== 'system') mode = 'system'
+          var dark =
+            mode === 'dark' ||
+            (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+          var root = document.documentElement
+          root.classList.toggle('dark', dark)
+          root.style.colorScheme = dark ? 'dark' : 'light'
+        } catch (e) {
+          /* storage 不可用：先按浅色渲染，挂载后由 useTheme 接管 */
+        }
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

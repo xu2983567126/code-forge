@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: code-forge-judge
+  # 服务注册
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+
+server:
+  address: 0.0.0.0
+  port: 8105
+  servlet:
+    context-path: /api/judge
+
+# 代码沙箱类型：remote / example（见 CodeSandboxFactory）
+codesandbox:
+  type: remote

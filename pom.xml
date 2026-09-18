@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  OJ 微服务版 —— 聚合父 POM
+
+  设计原则：
+  1. 父 POM 只做「版本管理（dependencyManagement）+ 插件管理（pluginManagement）」，**不直接声明 dependencies**。
+     旧版本用 <dependencies> 会把 sentinel-gateway / webflux 适配器 / easyexcel / devtools 等
+     无条件灌进全部 8 个模块（user-service 曾因此带上 260 个运行时依赖）。
+  2. 依赖由各模块按需显式声明，谁的代码用谁声明。
+  3. 三件套版本必须配套：Boot 3.5.0 + Cloud 2025.0.0 + Alibaba 2025.0.0.0。
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.xly</groupId>
+    <artifactId>code-forge</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>code-forge</name>
+    <description>OJ 微服务版：common / model / service-client + user / question / submission / judge 四服务 + 网关</description>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>code-forge-common</module>
+        <module>code-forge-model</module>
+        <module>code-forge-service-client</module>
+        <module>code-forge-user</module>
+        <module>code-forge-question</module>
+        <module>code-forge-submission</module>
+        <module>code-forge-judge</module>
+        <module>code-forge-gateway</module>
+    </modules>
+
+    <properties>
+        <!-- Java 版本：Boot 4 要求 Java 17+，本机已具备 JDK 26（D:\Env\java\latest\temurin），用 26 跑构建/运行 -->
+        <java.version>26</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <!-- 框架三件套（必须配套，勿单独升级）：SCA 2025.1.0.0 专为 Boot 4.0 打造 -->
+        <spring-boot.version>4.0.8</spring-boot.version>
+        <spring-cloud.version>2025.1.0</spring-cloud.version>
+        <spring-cloud-alibaba.version>2025.1.0.0</spring-cloud-alibaba.version>
+        <!-- BOM 未管理的三方库 -->
+        <!-- mybatis-plus：Boot 4 用 mybatis-plus-spring-boot4-starter。
+             3.5.17 把 IService/ServiceImpl 从 com.baomidou.mybatisplus.extension.service
+             搬到 com.baomidou.mybatisplus.spring.service（新模块 mybatis-plus-spring）；
+             plugins / pagination 仍在 extension，仅 service 相关 import 需改，已处理。 -->
+        <mybatis-plus.version>3.5.17</mybatis-plus.version>
+        <hutool.version>5.8.47</hutool.version>
+        <bouncycastle.version>1.77</bouncycastle.version>
+        <lombok.version>1.18.48</lombok.version>
+        <!-- 聚合文档：nextdoc4j 网关聚合 + 各服务 springdoc 暴露 /v3/api-docs。
+             nextdoc4j 1.4.1 兼容 springdoc 3.x（Boot 4 / Spring Framework 7 线），
+             故用 3.x 而非 2.x（2.x 面向 Boot 3）。 -->
+        <springdoc.version>3.1.1</springdoc.version>
+        <nextdoc4j.version>1.4.1</nextdoc4j.version>
+        <!-- Sa-Token 登录态框架：1.45+ 提供 Boot 4 starter；reactor-* 给 webflux 网关用 -->
+        <sa-token.version>1.46.0</sa-token.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- ===== BOM：统一三方库版本 ===== -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.alibaba.cloud</groupId>
+                <artifactId>spring-cloud-alibaba-dependencies</artifactId>
+                <version>${spring-cloud-alibaba.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- ===== 工程内部模块（各子模块引用时无需再写 version） ===== -->
+            <dependency>
+                <groupId>com.xly</groupId>
+                <artifactId>code-forge-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.xly</groupId>
+                <artifactId>code-forge-model</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.xly</groupId>
+                <artifactId>code-forge-service-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!-- ===== BOM 未管理的三方库 ===== -->
+            <!-- 注意坐标别写错：Spring Boot 4 用 **mybatis-plus-spring-boot4-starter**（3.5.13+ 支持）。
+                 写成 mybatis-plus-boot-starter 会带进 mybatis-spring 2.1.2（Boot 2 时代产物），
+                 启动即报 Invalid value type for attribute 'factoryBeanObjectType': java.lang.String -->
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+            <!-- MP 3.5.9+ 分页插件拆到了 jsqlparser，不引入则分页静默失效 -->
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-jsqlparser</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+            <!-- model 模块只需注解，用 annotation 而非 starter，避免把 jdbc/数据源自动配置拖给不连库的 judge-service -->
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-annotation</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-extension</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>cn.hutool</groupId>
+                <artifactId>hutool-all</artifactId>
+                <version>${hutool.version}</version>
+            </dependency>
+            <!-- 聚合文档：各服务用 -api（仅暴露 /v3/api-docs，不带 UI，更轻）；
+                 网关用 -ui 承载统一 /doc.html 界面 -->
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-api</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+            <!-- 网关为 WebFlux（Reactive）栈，UI 用 webflux 形态 -->
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+            <!-- nextdoc4j 网关聚合 Starter：其 pom 把 webflux/webmvc 网关与两套 springdoc UI 均标为 optional，
+                 宿主按实际 Web 栈自引（本项目为 webflux 网关 + 上面的 springdoc-webflux-ui），故兼容 -->
+            <dependency>
+                <groupId>top.nextdoc4j</groupId>
+                <artifactId>nextdoc4j-gateway-spring-boot-starter</artifactId>
+                <version>${nextdoc4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcprov-jdk18on</artifactId>
+                <version>${bouncycastle.version}</version>
+            </dependency>
+            <!-- ===== Sa-Token 登录态（依赖管理，各模块按需引） ===== -->
+            <!-- 下游 Servlet 服务（user/question/submission/judge）用这个 -->
+            <dependency>
+                <groupId>cn.dev33</groupId>
+                <artifactId>sa-token-spring-boot4-starter</artifactId>
+                <version>${sa-token.version}</version>
+            </dependency>
+            <!-- webflux 网关用 reactor 版（提供 SaReactorFilter），Servlet 的 SaInterceptor 不能用于 webflux -->
+            <dependency>
+                <groupId>cn.dev33</groupId>
+                <artifactId>sa-token-reactor-spring-boot4-starter</artifactId>
+                <version>${sa-token.version}</version>
+            </dependency>
+            <!-- Redis 中心化存储 token（必须，否则默认内存 Map → 分布式失效）。
+                 用 sa-token-redis-template（基于 RedisTemplate 的标准集成，直接吃 spring.data.redis）；
+                 alone-redis 是"权限/业务缓存分离"插件，本项目无业务 Redis 故不用 -->
+            <dependency>
+                <groupId>cn.dev33</groupId>
+                <artifactId>sa-token-redis-template</artifactId>
+                <version>${sa-token.version}</version>
+            </dependency>
+            <!-- 仅 API（StpUtil 门面），不含 starter 自动配置；运行期由下游 starter 提供配置 -->
+            <dependency>
+                <groupId>cn.dev33</groupId>
+                <artifactId>sa-token-core</artifactId>
+                <version>${sa-token.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.13.0</version>
+                    <configuration>
+                        <release>${java.version}</release>
+                        <encoding>UTF-8</encoding>
+                        <!-- 【必须】保留方法参数名。本项目不使用 spring-boot-starter-parent，
+                             父 POM 不会替我们打开这个开关。缺了它，形如
+                             @RequestParam long id / @PathVariable Long id（注解里没写名字）
+                             的接口会在运行期抛
+                               IllegalArgumentException: Name for argument of type [long] not specified,
+                               and parameter name information not available via reflection.
+                             spring-boot-starter-parent 默认就是 <parameters>true</parameters>。 -->
+                        <parameters>true</parameters>
+                        <!-- 显式声明 lombok 版本：旧配置只写了 artifactId 没写 version，
+                             Maven 3.9+ 会直接报 "The version cannot be empty" -->
+                        <annotationProcessorPaths>
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                                <version>${lombok.version}</version>
+                            </path>
+                        </annotationProcessorPaths>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <version>${spring-boot.version}</version>
+                    <configuration>
+                        <excludes>
+                            <exclude>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                            </exclude>
+                        </excludes>
+                    </configuration>
+                    <executions>
+                        <!-- 本项目不使用 spring-boot-starter-parent，必须自己绑定 repackage，
+                             否则 mvn package 产出的是「普通 jar」而不是可执行 fat jar -->
+                        <execution>
+                            <id>repackage</id>
+                            <goals>
+                                <goal>repackage</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+
+</project>

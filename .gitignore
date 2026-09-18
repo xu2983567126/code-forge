@@ -1,0 +1,54 @@
+HELP.md
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+# ---- 本地运行产物 ----
+logs/
+*.log
+
+# ---- Python ----
+__pycache__/
+*.pyc
+
+# ---- WorkBuddy 项目数据（备份快照 + AI 记忆，均不入库） ----
+.workbuddy/
+
+# ---- 前端一次性备份目录 ----
+code-forge-web/.bak-*/
+
+# ---- 内部方案文档，仅本地留存 ----
+docs/
+
+
+# ---- 本地脚本不入库 ----
+scripts/
