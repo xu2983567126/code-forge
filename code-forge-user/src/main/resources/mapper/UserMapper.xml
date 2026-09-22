@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xly.codeforge.user.mapper.UserMapper">
+
+    <!-- 统计符合条件的用户数（今日 / 角色 / 总数共用） -->
+    <select id="countUsers" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM user
+        WHERE is_delete = 0
+        <if test="todayStart != null">
+          AND create_time &gt;= #{todayStart}
+        </if>
+        <if test="role != null">
+          AND role = #{role}
+        </if>
+    </select>
+
+</mapper>

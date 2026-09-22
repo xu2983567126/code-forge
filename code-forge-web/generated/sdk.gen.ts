@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AddQuestionBankData, AddQuestionBankResponses, AddQuestionToBankData, AddQuestionToBankResponses, BackfillVerdictData, BackfillVerdictResponses, BanUserData, BanUserResponses, BatchDeleteUserData, BatchDeleteUserResponses, BulkOperateQuestionData, BulkOperateQuestionResponses, CreateQuestionData, CreateQuestionResponses, CreateUserData, CreateUserResponses, DeleteQuestionBankData, DeleteQuestionBankResponses, DeleteQuestionData, DeleteQuestionResponses, DeleteUserData, DeleteUserResponses, FavouriteBankData, FavouriteBankResponses, FavouriteQuestionData, FavouriteQuestionResponses, ForkQuestionBankData, ForkQuestionBankResponses, GetAdjacentQuestionData, GetAdjacentQuestionResponses, GetBestSubmissionData, GetBestSubmissionResponses, GetDashboardStatsData, GetDashboardStatsResponses, GetHeatmapData, GetHeatmapResponses, GetLoginUserData, GetLoginUserResponses, GetQuestionBankData, GetQuestionBankResponses, GetQuestionBankVoData, GetQuestionBankVoResponses, GetQuestionVoByIdData, GetQuestionVoByIdResponses, GetRandomQuestionData, GetRandomQuestionResponses, GetUserByIdData, GetUserByIdResponses, GetUserHeatmapData, GetUserHeatmapResponses, GetUserStats1Data, GetUserStats1Responses, GetUserStatsData, GetUserStatsResponses, GetUserVoByIdData, GetUserVoByIdResponses, ListMyFavouriteBankData, ListMyFavouriteBankResponses, ListMyFavouriteQuestionData, ListMyFavouriteQuestionResponses, ListMyQuestionBankVoByPageData, ListMyQuestionBankVoByPageResponses, ListMyQuestionVoByPageData, ListMyQuestionVoByPageResponses, ListQuestionBankQuestionByPageData, ListQuestionBankQuestionByPageResponses, ListQuestionBankVoByPageData, ListQuestionBankVoByPageResponses, ListQuestionByPageData, ListQuestionByPageResponses, ListQuestionVoByPageData, ListQuestionVoByPageResponses, ListSubmissionByPageData, ListSubmissionByPageResponses, ListUserByPageData, ListUserByPageResponses, ListUserVoByPageData, ListUserVoByPageResponses, ListUserWithStatsByPageData, ListUserWithStatsByPageResponses, ListVerdictOptionsData, ListVerdictOptionsResponses, MapSolvedQuestionsData, MapSolvedQuestionsResponses, PageQuestionIdsInBankData, PageQuestionIdsInBankResponses, RemoveQuestionFromBankData, RemoveQuestionFromBankResponses, RunCodeData, RunCodeResponses, SubmitData, SubmitResponses, UnbanUserData, UnbanUserResponses, UnfavouriteBankData, UnfavouriteBankResponses, UnfavouriteQuestionData, UnfavouriteQuestionResponses, UpdateMyUserData, UpdateMyUserResponses, UpdateQuestionBankData, UpdateQuestionBankResponses, UpdateQuestionData, UpdateQuestionResponses, UpdateUserData, UpdateUserResponses, UserLoginData, UserLoginResponses, UserLogoutData, UserLogoutResponses, UserRegisterData, UserRegisterResponses } from './types.gen';
+import type { AddQuestionBankData, AddQuestionBankResponses, AddQuestionToBankData, AddQuestionToBankResponses, BackfillVerdictData, BackfillVerdictResponses, BanUserData, BanUserResponses, BatchDeleteUserData, BatchDeleteUserResponses, BulkOperateQuestionData, BulkOperateQuestionResponses, CreateQuestionData, CreateQuestionResponses, CreateUserData, CreateUserResponses, DeleteQuestionBankData, DeleteQuestionBankResponses, DeleteQuestionData, DeleteQuestionResponses, DeleteUserData, DeleteUserResponses, FavouriteBankData, FavouriteBankResponses, FavouriteQuestionData, FavouriteQuestionResponses, ForkQuestionBankData, ForkQuestionBankResponses, GetAdjacentQuestionData, GetAdjacentQuestionResponses, GetBestSubmissionData, GetBestSubmissionResponses, GetDashboardStatsData, GetDashboardStatsResponses, GetHeatmapData, GetHeatmapResponses, GetLoginUserData, GetLoginUserResponses, GetQuestionBankData, GetQuestionBankResponses, GetQuestionBankVoData, GetQuestionBankVoResponses, GetQuestionVoByIdData, GetQuestionVoByIdResponses, GetRandomQuestionData, GetRandomQuestionResponses, GetSubmissionVoByIdData, GetSubmissionVoByIdResponses, GetUserByIdData, GetUserByIdResponses, GetUserHeatmapData, GetUserHeatmapResponses, GetUserStats1Data, GetUserStats1Responses, GetUserStatsData, GetUserStatsResponses, GetUserVoByIdData, GetUserVoByIdResponses, ListMyFavouriteBankData, ListMyFavouriteBankResponses, ListMyFavouriteQuestionData, ListMyFavouriteQuestionResponses, ListMyQuestionBankVoByPageData, ListMyQuestionBankVoByPageResponses, ListMyQuestionVoByPageData, ListMyQuestionVoByPageResponses, ListQuestionBankQuestionByPageData, ListQuestionBankQuestionByPageResponses, ListQuestionBankVoByPageData, ListQuestionBankVoByPageResponses, ListQuestionByPageData, ListQuestionByPageResponses, ListQuestionVoByPageData, ListQuestionVoByPageResponses, ListSubmissionByPageData, ListSubmissionByPageResponses, ListUserByPageData, ListUserByPageResponses, ListUserVoByPageData, ListUserVoByPageResponses, ListUserWithStatsByPageData, ListUserWithStatsByPageResponses, ListVerdictOptionsData, ListVerdictOptionsResponses, MapSolvedQuestionsData, MapSolvedQuestionsResponses, PageQuestionIdsInBankData, PageQuestionIdsInBankResponses, PageQuestionsInBankData, PageQuestionsInBankResponses, RemoveQuestionFromBankData, RemoveQuestionFromBankResponses, RunWithJudgeData, RunWithJudgeResponses, SubmitData, SubmitResponses, UnbanUserData, UnbanUserResponses, UnfavouriteBankData, UnfavouriteBankResponses, UnfavouriteQuestionData, UnfavouriteQuestionResponses, UpdateMyUserData, UpdateMyUserResponses, UpdateQuestionBankData, UpdateQuestionBankResponses, UpdateQuestionData, UpdateQuestionResponses, UpdateUserData, UpdateUserResponses, UserLoginData, UserLoginResponses, UserLogoutData, UserLogoutResponses, UserRegisterData, UserRegisterResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -64,6 +64,15 @@ export const removeQuestionFromBank = <ThrowOnError extends boolean = false>(opt
 
 export const addQuestionToBank = <ThrowOnError extends boolean = false>(options: Options<AddQuestionToBankData, ThrowOnError>): RequestResult<AddQuestionToBankResponses, unknown, ThrowOnError> => (options.client ?? client).post<AddQuestionToBankResponses, unknown, ThrowOnError>({
     url: '/question/question-bank-question',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const pageQuestionsInBank = <ThrowOnError extends boolean = false>(options: Options<PageQuestionsInBankData, ThrowOnError>): RequestResult<PageQuestionsInBankResponses, unknown, ThrowOnError> => (options.client ?? client).post<PageQuestionsInBankResponses, unknown, ThrowOnError>({
+    url: '/question/question-bank-question/{questionBankId}/questions',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -295,8 +304,8 @@ export const mapSolvedQuestions = <ThrowOnError extends boolean = false>(options
     }
 });
 
-export const runCode = <ThrowOnError extends boolean = false>(options: Options<RunCodeData, ThrowOnError>): RequestResult<RunCodeResponses, unknown, ThrowOnError> => (options.client ?? client).post<RunCodeResponses, unknown, ThrowOnError>({
-    url: '/submission/run',
+export const runWithJudge = <ThrowOnError extends boolean = false>(options: Options<RunWithJudgeData, ThrowOnError>): RequestResult<RunWithJudgeResponses, unknown, ThrowOnError> => (options.client ?? client).post<RunWithJudgeResponses, unknown, ThrowOnError>({
+    url: '/submission/run-with-judge',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -314,6 +323,8 @@ export const listSubmissionByPage = <ThrowOnError extends boolean = false>(optio
         ...options.headers
     }
 });
+
+export const getSubmissionVoById = <ThrowOnError extends boolean = false>(options: Options<GetSubmissionVoByIdData, ThrowOnError>): RequestResult<GetSubmissionVoByIdResponses, unknown, ThrowOnError> => (options.client ?? client).get<GetSubmissionVoByIdResponses, unknown, ThrowOnError>({ url: '/submission/{id}/vo', ...options });
 
 export const listVerdictOptions = <ThrowOnError extends boolean = false>(options?: Options<ListVerdictOptionsData, ThrowOnError>): RequestResult<ListVerdictOptionsResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListVerdictOptionsResponses, unknown, ThrowOnError>({ url: '/submission/verdicts', ...options });
 

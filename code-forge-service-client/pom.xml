@@ -10,17 +10,13 @@
 
     <artifactId>code-forge-service-client</artifactId>
     <name>code-forge-service-client</name>
-    <description>服务间调用客户端：只有 Feign 接口，是库不是服务（无启动类、无配置文件）</description>
+    <description>服务间调用客户端：HttpExchange 接口（RestClient + 负载均衡），是库不是服务（无启动类、无配置文件）</description>
 
     <dependencies>
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-openfeign</artifactId>
-        </dependency>
         <!--
-          所有本库定义的 Feign 客户端都不写死 URL，靠 Nacos 服务发现做负载均衡。
-          OpenFeign 5.0 起不再默认携带 loadbalancer，必须由声明方提供。
-          放进本库，任意消费方（user / question / submission / judge）无需各自重复引入。
+          HttpExchange 客户端走服务发现：RestClient 的 URL 以 http://<服务名> 开头，
+          由 spring-cloud-starter-loadbalancer 提供的 @LoadBalanced 拦截器解析为实例。
+          放进本库，任意消费方无需各自重复引入。
         -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
@@ -30,6 +26,11 @@
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-web</artifactId>
+        </dependency>
+        <!-- @AutoConfiguration（ServiceClientAutoConfiguration 经 AutoConfiguration.imports 注册） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
         </dependency>
         <!-- BeanUtils -->
         <dependency>

@@ -1,17 +1,17 @@
 package com.xly.codeforge.submission.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.xly.codeforge.common.common.BaseResponse;
+import com.xly.codeforge.common.common.Result;
 import com.xly.codeforge.common.common.ErrorCode;
-import com.xly.codeforge.common.common.ResultUtils;
+import com.xly.codeforge.common.utils.ResultUtils;
 import com.xly.codeforge.common.exception.BusinessException;
-import com.xly.codeforge.common.exception.ThrowUtils;
-import com.xly.codeforge.model.dto.judge.RunCodeRequest;
-import com.xly.codeforge.model.dto.submission.SubmissionAddRequest;
+import com.xly.codeforge.common.exception.BusinessAssert;
+import com.xly.codeforge.model.dto.judge.RunJudgeRequest;
+import com.xly.codeforge.model.dto.submission.JudgeInfo;
+import com.xly.codeforge.model.dto.submission.SubmissionCreateRequest;
 import com.xly.codeforge.model.dto.submission.SubmissionQueryRequest;
 import com.xly.codeforge.model.entity.Submission;
 import com.xly.codeforge.model.entity.User;
-import com.xly.codeforge.model.vo.RunCodeVO;
 import com.xly.codeforge.model.vo.SubmissionVO;
 import com.xly.codeforge.client.service.UserFeignClient;
 import com.xly.codeforge.submission.service.SubmissionService;
@@ -36,8 +36,6 @@ import java.util.Map;
  * 完整路径为 {@code /api/submission/...}。类上映射保持 {@code "/"}：再套一层
  * {@code /submissions} 会与网关的 {@code /api/submission/**} 重复一层。</p>
  *
- * @author <a href="https://github.com/liyupi">程序员鱼皮</a>
- * @from <a href="https://yupi.icu">编程导航知识星球</a>
  */
 @RestController
 @RequestMapping("/")
@@ -58,27 +56,43 @@ public class SubmissionController {
      * @return 提交记录的 ID
      */
     @PostMapping("/submit")
-    public BaseResponse<Long> submit(@RequestBody SubmissionAddRequest submissionAddRequest,
-                                     HttpServletRequest request) {
-        if (submissionAddRequest == null || submissionAddRequest.getQuestionId() <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+    public Result<Long> submit(@RequestBody SubmissionCreateRequest submissionCreateRequest,
+                               HttpServletRequest request) {
+        if (submissionCreateRequest == null || submissionCreateRequest.getQuestionId() <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "题目不存在");
         }
         // 登录才能提交
         final User loginUser = userFeignClient.getLoginUser(request);
-        long submissionId = submissionService.submit(submissionAddRequest, loginUser);
+        long submissionId = submissionService.submit(submissionCreateRequest, loginUser);
         return ResultUtils.success(submissionId);
     }
 
     /**
-     * 试运行代码（不落库、同步返回）
+     * 试运行判题（不落库、异步：立刻返回 runId，结果走轮询端点）
      *
-     * <p>{@code POST /submission/run}。用于题目详情页的「运行」按钮 ——
-     * 用户拿样例输入试一下代码，不该在提交记录里留下一行。</p>
+     * <p>{@code POST /submission/run-with-judge}。用于题目详情页的「运行」按钮 ——
+     * 用户编辑/套用可编辑用例（输入 + 期望输出），后端调沙箱执行并判题，逐用例返回 verdict，
+     * 但不写数据库、不进提交记录。判题在 judge-service 独立线程池异步执行，本端点只返回 runId。</p>
      */
-    @PostMapping("/run")
-    public BaseResponse<RunCodeVO> runCode(@RequestBody RunCodeRequest runCodeRequest, HttpServletRequest request) {
+    @PostMapping("/run-with-judge")
+    public Result<String> runWithJudge(@RequestBody RunJudgeRequest runJudgeRequest, HttpServletRequest request) {
         User loginUser = userFeignClient.getLoginUser(request);
-        return ResultUtils.success(submissionService.runCode(runCodeRequest, loginUser));
+        return ResultUtils.success(submissionService.runWithJudge(runJudgeRequest, loginUser));
+    }
+
+    /**
+     * 取试运行结果（轮询端点）
+     *
+     * <p>{@code GET /submission/run-with-judge/result/{runId}}。run-with-judge 不落库，
+     * 结果只在 judge-service 内存缓存短暂停留（TTL 默认 60s）。未就绪或已过期返回 {@code data: null}，
+     * 由前端按客户端超时决定是否继续轮询 / 判超时重跑。</p>
+     */
+    @GetMapping("/run-with-judge/result/{runId}")
+    public Result<JudgeInfo> getRunWithJudgeResult(@PathVariable("runId") String runId,
+                                                   HttpServletRequest request) {
+        // 试运行结果只属于发起者本人，但判定本身不泄露他人数据，仍要求登录以防匿名探测
+        userFeignClient.getLoginUser(request);
+        return ResultUtils.success(submissionService.getRunWithJudgeResult(runId));
     }
 
     /**
@@ -89,14 +103,14 @@ public class SubmissionController {
      * 管理员可看全站（不传 {@code userId}）或指定用户。</p>
      */
     @PostMapping("/list/page/vo")
-    public BaseResponse<Page<SubmissionVO>> listSubmissionByPage(@RequestBody SubmissionQueryRequest submissionQueryRequest,
-                                                                 HttpServletRequest request) {
+    public Result<Page<SubmissionVO>> listSubmissionByPage(@RequestBody SubmissionQueryRequest submissionQueryRequest,
+                                                           HttpServletRequest request) {
         if (submissionQueryRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         long current = Math.max(submissionQueryRequest.getCurrent(), 1);
         long size = submissionQueryRequest.getPageSize();
-        ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR, "页大小不能超过 20");
+        BusinessAssert.isTrue(size <= 20, ErrorCode.PARAMS_ERROR, "页大小不能超过 20");
         User loginUser = userFeignClient.getLoginUser(request);
         // 必须在构造 QueryWrapper 之前收敛范围，否则请求里的 userId 会直接进 SQL
         submissionService.applyDataScope(submissionQueryRequest, loginUser);
@@ -117,7 +131,7 @@ public class SubmissionController {
      * 自己走这一步校验，漏写即等于全公开。</p>
      */
     @GetMapping("/{id}/vo")
-    public BaseResponse<SubmissionVO> getSubmissionVOById(@PathVariable("id") long id, HttpServletRequest request) {
+    public Result<SubmissionVO> getSubmissionVOById(@PathVariable("id") long id, HttpServletRequest request) {
         User loginUser = userFeignClient.getLoginUser(request);
         return ResultUtils.success(submissionService.getSubmissionVOById(id, loginUser));
     }
@@ -131,9 +145,9 @@ public class SubmissionController {
      * <p>无提交时返回 {@code data: null}，不报错 —— 这是最常见的情况（第一次做题）。</p>
      */
     @GetMapping("/best")
-    public BaseResponse<SubmissionVO> getBestSubmission(@RequestParam("questionId") long questionId,
-                                                        HttpServletRequest request) {
-        ThrowUtils.throwIf(questionId <= 0, ErrorCode.PARAMS_ERROR);
+    public Result<SubmissionVO> getBestSubmission(@RequestParam("questionId") long questionId,
+                                                  HttpServletRequest request) {
+        BusinessAssert.isTrue(questionId > 0, ErrorCode.INVALID_ID);
         User loginUser = userFeignClient.getLoginUser(request);
         return ResultUtils.success(submissionService.getBestSubmission(questionId, loginUser));
     }
@@ -147,12 +161,12 @@ public class SubmissionController {
      * @return 题目 id → 是否已 AC
      */
     @PostMapping("/solved")
-    public BaseResponse<Map<Long, Boolean>> mapSolvedQuestions(@RequestBody List<Long> questionIds,
-                                                               HttpServletRequest request) {
+    public Result<Map<Long, Boolean>> mapSolvedQuestions(@RequestBody List<Long> questionIds,
+                                                         HttpServletRequest request) {
         if (questionIds == null || questionIds.isEmpty()) {
             return ResultUtils.success(Map.of());
         }
-        ThrowUtils.throwIf(questionIds.size() > 200, ErrorCode.PARAMS_ERROR, "单次最多查询 200 道题");
+        BusinessAssert.isTrue(questionIds.size() <= 200, ErrorCode.PARAMS_ERROR, "单次最多查询 200 道题");
         User loginUser = userFeignClient.getLoginUser(request);
         return ResultUtils.success(submissionService.mapSolvedQuestions(questionIds, loginUser.getId()));
     }
@@ -163,7 +177,7 @@ public class SubmissionController {
      * <p>{@code GET /submission/verdicts}</p>
      */
     @GetMapping("/verdicts")
-    public BaseResponse<List<Map<String, String>>> listVerdictOptions() {
+    public Result<List<Map<String, String>>> listVerdictOptions() {
         return ResultUtils.success(submissionService.listVerdictOptions());
     }
 
@@ -180,9 +194,9 @@ public class SubmissionController {
      * 故这里直接调 Feign 查角色，行为可见、可验证。</p>
      */
     @PostMapping("/manage/backfill-verdict")
-    public BaseResponse<Integer> backfillVerdict(HttpServletRequest request) {
+    public Result<Integer> backfillVerdict(HttpServletRequest request) {
         User loginUser = userFeignClient.getLoginUser(request);
-        ThrowUtils.throwIf(!userFeignClient.isAdmin(loginUser), ErrorCode.NO_AUTH_ERROR);
+        BusinessAssert.isTrue(userFeignClient.isAdmin(loginUser), ErrorCode.NO_AUTH_ERROR);
         return ResultUtils.success(submissionService.backfillVerdict());
     }
 }

@@ -6,6 +6,8 @@ spring:
     nacos:
       discovery:
         server-addr: 127.0.0.1:8848
+        username: nacos
+        password: 123456
     # 路由表：uri 用 lb:// 走 Nacos 服务发现 + 负载均衡
     gateway:
       server:

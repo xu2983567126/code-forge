@@ -1,7 +1,16 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import * as monaco from "monaco-editor";
 import loader from "@monaco-editor/loader";
 import { registerSolarizedThemes } from "@/lib/monaco-solarized-theme";
+import { configureMonacoWorkers } from "@/utils/monaco-workers";
+import { useTheme } from "@/lib/theme/useTheme";
+
+// Monaco 一律用本地打包的实例，不依赖 CDN：
+// loader 默认会去 jsdelivr 拉资源，拉不到时（断网 / CDN 不可达 / 冷缓存太慢）编辑器整块不出现；
+// worker 也必须本地化，否则 Monaco 仍会按 CDN 路径去找 worker。
+configureMonacoWorkers();
+loader.config({ monaco });
 
 const props = defineProps<{
   modelValue: string;
@@ -13,6 +22,7 @@ const props = defineProps<{
   tabSize?: number;
   lineNumbers?: "on" | "off" | "relative";
   fontFamily?: string;
+  readOnly?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -23,7 +33,23 @@ const container = ref<HTMLDivElement | null>(null);
 let editor: import("monaco-editor").editor.IStandaloneCodeEditor | null = null;
 let monacoInstance: typeof import("monaco-editor") | null = null;
 let monacoPromise: Promise<typeof import("monaco-editor")> | null = null;
-const globalMonacoKey = "__ULTICODE_MONACO__";
+/**
+ * 跨组件实例共享用的全局缓存键。
+ *
+ * 挂在 window 上而不是模块变量：HMR 会重置模块级状态，而 Monaco 实例必须复用 ——
+ * 重建会丢已注册的主题/语言配置并泄漏 worker。
+ */
+const globalMonacoKey = "__CODE_FORGE_MONACO__";
+
+const { resolved: siteTheme } = useTheme();
+
+/** 站点主题 → Monaco 主题标识（registerSolarizedThemes 已覆盖 vs-light / vs-dark 两个标识的调色板）。 */
+const siteMonacoTheme = computed<"vs-light" | "vs-dark">(() =>
+  siteTheme.value === "dark" ? "vs-dark" : "vs-light",
+);
+
+/** 未显式传 theme 时跟随站点主题：浅色页面里不该嵌一块深色代码区。 */
+const effectiveTheme = computed(() => props.theme ?? siteMonacoTheme.value);
 
 interface GlobalScope {
   [key: string]: unknown;
@@ -175,11 +201,12 @@ onMounted(async () => {
     tabSize: props.tabSize ?? 2,
     lineNumbers: props.lineNumbers ?? "on",
     wordWrap: props.wordWrap ? "on" : "off",
-    theme: props.theme ?? "vs-dark",
+    theme: effectiveTheme.value,
     fontFamily:
       props.fontFamily ??
       '"JetBrains Mono", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", monospace',
     fontLigatures: true,
+    readOnly: props.readOnly ?? false,
     // IntelliSense and Suggestion Options
     quickSuggestions: {
       other: true,
@@ -220,6 +247,13 @@ watch(
   },
 );
 
+// Monaco 的主题是全局的（同页面所有编辑器一起变），站点主题切换时同步。
+// 编辑器还没建起来时跳过 —— create 时会直接用 effectiveTheme 的当前值。
+watch(effectiveTheme, (theme) => {
+  if (!editor) return;
+  monaco.editor.setTheme(theme);
+});
+
 watch(
   () => props.language,
   async (language) => {
@@ -248,6 +282,14 @@ watch(
   (value) => {
     if (!editor) return;
     editor.updateOptions({ wordWrap: value ? "on" : "off" });
+  },
+);
+
+watch(
+  () => props.readOnly,
+  (value) => {
+    if (!editor) return;
+    editor.updateOptions({ readOnly: Boolean(value) });
   },
 );
 

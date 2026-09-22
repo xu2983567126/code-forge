@@ -1,6 +1,8 @@
 package com.xly.codeforge.submission.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.xly.codeforge.model.dto.submission.SubmissionFenceRequest;
+import com.xly.codeforge.model.dto.submission.SubmissionVerdictRequest;
 import com.xly.codeforge.model.entity.Submission;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -12,7 +14,7 @@ import java.util.List;
  * 题目提交 Mapper
  *
  * @author user
- * @description 针对表【question_submit(题目提交)】的数据库操作Mapper
+ * @description 针对表【submission(题目提交)】的数据库操作Mapper
  * @Entity com.xly.myoj.model.entity.Submission
  */
 public interface SubmissionMapper extends BaseMapper<Submission> {
@@ -35,7 +37,7 @@ public interface SubmissionMapper extends BaseMapper<Submission> {
      * @return 提交 id；无 AC 记录时返回 null
      */
     @Select("""
-            SELECT id FROM question_submit
+            SELECT id FROM submission
             WHERE question_id = #{questionId}
               AND user_id = #{userId}
               AND verdict = 'ACCEPTED'
@@ -53,7 +55,7 @@ public interface SubmissionMapper extends BaseMapper<Submission> {
      * @return 提交 id；无提交时返回 null
      */
     @Select("""
-            SELECT id FROM question_submit
+            SELECT id FROM submission
             WHERE question_id = #{questionId}
               AND user_id = #{userId}
               AND is_delete = 0
@@ -74,16 +76,6 @@ public interface SubmissionMapper extends BaseMapper<Submission> {
      * @param userId      用户 id
      * @return 已通过的题目 id 列表
      */
-    @Select("""
-            <script>
-            SELECT DISTINCT question_id FROM question_submit
-            WHERE user_id = #{userId}
-              AND verdict = 'ACCEPTED'
-              AND is_delete = 0
-              AND question_id IN
-              <foreach collection="questionIds" item="id" open="(" separator="," close=")">#{id}</foreach>
-            </script>
-            """)
     List<Long> selectAcceptedQuestionIds(@Param("questionIds") List<Long> questionIds,
                                          @Param("userId") Long userId);
 
@@ -93,7 +85,8 @@ public interface SubmissionMapper extends BaseMapper<Submission> {
      * <p>用 CASE 表达式在数据库侧批量完成，不把数据拉到 Java 里循环 update
      * —— 历史数据可能有几万条，逐条往返的开销不可接受。</p>
      *
-     * <p>映射表与 {@code VerdictEnum.fromJudgeMessage} 保持一致；
+     * <p>历史数据回填用：早期 {@code judge_info.message} 存的是展示文案（Accepted / Wrong Answer…），
+     * 现收敛为单枚举后 message 即 verdict code；本 CASE 仅把遗留英文文案翻成 code。
      * 无法识别的文案归入 {@code SYSTEM_ERROR}（宁可显示系统错误也不能留空，
      * 空 verdict 会让记录在筛选中「消失」）。</p>
      *
@@ -103,7 +96,7 @@ public interface SubmissionMapper extends BaseMapper<Submission> {
      * @return 受影响行数
      */
     @Update("""
-            UPDATE question_submit SET verdict = CASE
+            UPDATE submission SET verdict = CASE
                 WHEN judge_info ->> '$.message' = 'Accepted' THEN 'ACCEPTED'
                 WHEN judge_info ->> '$.message' = 'Wrong Answer' THEN 'WRONG_ANSWER'
                 WHEN judge_info ->> '$.message' = 'Compiling Error' THEN 'COMPILE_ERROR'
@@ -119,6 +112,105 @@ public interface SubmissionMapper extends BaseMapper<Submission> {
               AND is_delete = 0
             """)
     int backfillVerdict();
+
+    // region 判题并发 fencing（M1，对齐 UltiCode SubmissionMapper，适配 INT status）
+    //
+    // 五条 CAS + 两条捞取，全部以 DB 时钟 + generation CAS 保证多实例安全。
+    // judge-service 经 Feign 只传 generation/attemptId，真正的 CAS 落在这里。
+
+    /**
+     * ① 抢占租约：把 WAITING 的提交原子地置为 RUNNING，写入 attemptId + 租约过期时间（DB 时钟）。
+     *
+     * <p>返回 1=抢到；0=已被别人抢走或已非 WAITING（含已终态 / 重复事件）。</p>
+     */
+    @Update("""
+            UPDATE submission
+            SET status = 1,
+                current_attempt_id = #{req.attemptId},
+                judging_lease_expires_at = DATE_ADD(NOW(), INTERVAL #{req.ttlSeconds} SECOND)
+            WHERE id = #{req.id} AND status = 0 AND generation = #{req.generation} AND is_delete = 0
+            """)
+    int acquireLease(@Param("req") SubmissionFenceRequest req);
+
+    /**
+     * ② 心跳续租：仅按 attemptId 续租（attempt 全局唯一）。
+     *
+     * <p>返回 0=已丢租约（被 reaper 回收重派），worker 应丢弃在途结果。</p>
+     */
+    @Update("""
+            UPDATE submission
+            SET judging_lease_expires_at = DATE_ADD(NOW(), INTERVAL #{req.ttlSeconds} SECOND)
+            WHERE id = #{req.id} AND current_attempt_id = #{req.attemptId} AND is_delete = 0
+            """)
+    int renewLease(@Param("req") SubmissionFenceRequest req);
+
+    /**
+     * ③ 写回判题结论（SUCCEED / FAILED）：CAS 必须同时匹配 generation + attemptId。
+     *
+     * <p>返回 0=结果已 stale（被 reaper 回收重派），丢弃不写。</p>
+     */
+    @Update("""
+            UPDATE submission
+            SET status = #{req.status},
+                verdict = #{req.verdict},
+                judge_info = #{req.judgeInfo},
+                current_attempt_id = NULL,
+                judging_lease_expires_at = NULL
+            WHERE id = #{req.id} AND generation = #{req.generation} AND current_attempt_id = #{req.attemptId} AND is_delete = 0
+            """)
+    int writeVerdictFenced(@Param("req") SubmissionVerdictRequest req);
+
+    /**
+     * ④ reaper 回收僵尸：把过期 RUNNING 复位为 WAITING + generation+1。
+     *
+     * <p>CAS 必须带 {@code expectedGen}：另一 reaper 实例已回收（代次已动）时本实例跳过 —— 多实例安全。</p>
+     */
+    @Update("""
+            UPDATE submission
+            SET status = 0,
+                generation = #{newGen},
+                current_attempt_id = NULL,
+                judging_lease_expires_at = NULL
+            WHERE id = #{id} AND status = 1 AND generation = #{expectedGen}
+              AND judging_lease_expires_at IS NOT NULL AND is_delete = 0
+            """)
+    int bumpGenerationAndReset(@Param("id") long id,
+                               @Param("expectedGen") long expectedGen,
+                               @Param("newGen") long newGen);
+
+    /**
+     * ⑤ reaper 捞过期租约（主回收路径）：过期 RUNNING + 有租约。
+     *
+     * <p>{@code FOR UPDATE SKIP LOCKED} 保证多 reaper 实例不抢同一批行。</p>
+     */
+    List<Submission> selectExpiredJudgingForUpdate(@Param("batchSize") int batchSize);
+
+    /**
+     * 二级安全网：捞「无租约且闲置过久」的卡住行 —— 覆盖「首次分发 / 重派事件丢失」。
+     *
+     * <p>两类：WAITING(0) 一直未被消费；或 RUNNING(1) 但租约从未写入（M1 之前遗留的僵尸）。
+     * 返回后由 reaper 复位为 WAITING 再重派；因 acquireLease 是 CAS，重复分发无害。</p>
+     */
+    List<Submission> selectStuckWithoutLease(@Param("batchSize") int batchSize,
+                                             @Param("idleSeconds") int idleSeconds);
+
+    /**
+     * 二级安全网复位：把卡住行原子地复位为 WAITING + generation+1。
+     *
+     * <p>CAS 带 {@code expectedGen}：另一 reaper 已复位（代次已动）时本实例跳过。</p>
+     */
+    @Update("""
+            UPDATE submission
+            SET status = 0,
+                generation = generation + 1,
+                current_attempt_id = NULL,
+                judging_lease_expires_at = NULL
+            WHERE id = #{id} AND generation = #{expectedGen}
+              AND (status = 0 OR (status = 1 AND judging_lease_expires_at IS NULL)) AND is_delete = 0
+            """)
+    int resetStuckToWaiting(@Param("id") long id, @Param("expectedGen") long expectedGen);
+
+    // endregion
 
     /**
      * 批量统计若干用户的提交数与通过题目数
@@ -136,20 +228,27 @@ public interface SubmissionMapper extends BaseMapper<Submission> {
      * @param userIds 用户 id 列表（不可为空）
      * @return 每行：userId / submitCount / acceptedCount
      */
-    @Select("""
-            <script>
-            SELECT user_id AS userId,
-                   COUNT(*) AS submitCount,
-                   COUNT(DISTINCT CASE WHEN verdict = 'ACCEPTED' THEN question_id END) AS acceptedCount
-            FROM question_submit
-            WHERE is_delete = 0
-              AND user_id IN
-              <foreach collection="userIds" item="uid" open="(" separator="," close=")">#{uid}</foreach>
-            GROUP BY user_id
-            </script>
-            """)
     List<com.xly.codeforge.model.dto.SubmissionStatsItemDTO> selectStatsByUserIds(
             @Param("userIds") List<Long> userIds);
+
+    /**
+     * 批量统计若干题目的提交数与通过数
+     *
+     * <p>用于题库列表 / 题目详情的通过率展示：原先读的是 {@code question.submit_num} /
+     * {@code accepted_num} 两个列，但它们运行期没有任何更新点（恒为 0），
+     * 现改为读取时从本表实时聚合。</p>
+     *
+     * <p><b>一次 SQL 覆盖整页题目</b>，返回结果只包含有提交记录的题目 ——
+     * 没有任何提交的题在结果里根本不出现，调用方必须给缺行补 0。</p>
+     *
+     * <p>{@code acceptedCount} 用 {@code COUNT(CASE WHEN ... THEN 1 END)} 而非
+     * {@code SUM(CASE ... )}：{@code SUM} 在 MySQL 里返回 DECIMAL，多一层到 Long 的隐式转换。</p>
+     *
+     * @param questionIds 题目 id 列表（不可为空）
+     * @return 每行：questionId / submitCount / acceptedCount
+     */
+    List<com.xly.codeforge.model.dto.QuestionSubmissionStatsDTO> selectStatsByQuestionIds(
+            @Param("questionIds") List<Long> questionIds);
 
     // region dashboard 统计（只读聚合，供 /inner/stats 使用）
 
@@ -163,15 +262,6 @@ public interface SubmissionMapper extends BaseMapper<Submission> {
      * @param todayStart 今日零点；传 null 表示统计全部
      * @return 提交数
      */
-    @Select("""
-            <script>
-            SELECT COUNT(*) FROM question_submit
-            WHERE is_delete = 0
-            <if test="todayStart != null">
-              AND create_time >= #{todayStart}
-            </if>
-            </script>
-            """)
     Long countSubmissions(@Param("todayStart") java.time.LocalDateTime todayStart);
 
     /**
@@ -184,7 +274,7 @@ public interface SubmissionMapper extends BaseMapper<Submission> {
      */
     @Select("""
             SELECT COALESCE(verdict, 'UNKNOWN') AS bucket, COUNT(*) AS cnt
-            FROM question_submit
+            FROM submission
             WHERE is_delete = 0
             GROUP BY COALESCE(verdict, 'UNKNOWN')
             """)
@@ -197,7 +287,7 @@ public interface SubmissionMapper extends BaseMapper<Submission> {
      */
     @Select("""
             SELECT language AS bucket, COUNT(*) AS cnt
-            FROM question_submit
+            FROM submission
             WHERE is_delete = 0
             GROUP BY language
             ORDER BY cnt DESC
@@ -218,20 +308,6 @@ public interface SubmissionMapper extends BaseMapper<Submission> {
      * @param userId   用户 id；传 null 表示统计全部用户
      * @return 每行：日期字符串 yyyy-MM-dd / cnt，按日期升序
      */
-    @Select("""
-            <script>
-            SELECT DATE_FORMAT(create_time, '%Y-%m-%d') AS bucket, COUNT(*) AS cnt
-            FROM question_submit
-            WHERE is_delete = 0
-              AND create_time &gt;= #{start}
-              AND create_time &lt; #{end}
-            <if test="userId != null">
-              AND user_id = #{userId}
-            </if>
-            GROUP BY DATE_FORMAT(create_time, '%Y-%m-%d')
-            ORDER BY bucket ASC
-            </script>
-            """)
     List<BucketCount> countByDay(@Param("start") java.time.LocalDateTime start,
                                  @Param("end") java.time.LocalDateTime end,
                                  @Param("userId") Long userId);

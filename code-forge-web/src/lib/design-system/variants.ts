@@ -43,14 +43,36 @@ export const MENU_ITEM_VARIANT_CLASSES = {
     "text-foreground-strong focus:bg-status-error-surface [&_svg:not([class*='text-'])]:!text-destructive",
 } as const;
 
+/**
+ * 难度徽章配色。
+ *
+ * 后端白名单是中文（简单 / 中等 / 困难），上游移植件用的是英文键 —— 两侧都收，
+ * 调用方不必各自翻译，也不必在页面里再抄一份 switch。未知难度落到中性灰，
+ * 而不是冒充"中等"。
+ */
+const EASY_BADGE =
+  "text-foreground-strong bg-status-success-surface border border-status-success-mark";
+const MEDIUM_BADGE =
+  "text-foreground-strong bg-status-warning-surface border border-status-warning-mark";
+const HARD_BADGE =
+  "text-foreground-strong bg-status-error-surface border border-status-error-mark";
+
 const DIFFICULTY_BADGE_CLASSES: Record<string, string> = {
-  EASY: "text-foreground-strong bg-status-success-surface border border-status-success-mark",
-  MEDIUM: "text-foreground-strong bg-status-warning-surface border border-status-warning-mark",
-  HARD: "text-foreground-strong bg-status-error-surface border border-status-error-mark",
+  EASY: EASY_BADGE,
+  简单: EASY_BADGE,
+  MEDIUM: MEDIUM_BADGE,
+  中等: MEDIUM_BADGE,
+  HARD: HARD_BADGE,
+  困难: HARD_BADGE,
 };
 const DEFAULT_DIFFICULTY_BADGE_CLASS =
   "text-foreground-strong bg-surface-highlight border border-control";
 
 export function getDifficultyBadgeClass(difficulty: string): string {
-  return DIFFICULTY_BADGE_CLASSES[difficulty.toUpperCase()] ?? DEFAULT_DIFFICULTY_BADGE_CLASS;
+  const raw = (difficulty ?? "").trim();
+  return (
+    DIFFICULTY_BADGE_CLASSES[raw] ??
+    DIFFICULTY_BADGE_CLASSES[raw.toUpperCase()] ??
+    DEFAULT_DIFFICULTY_BADGE_CLASS
+  );
 }

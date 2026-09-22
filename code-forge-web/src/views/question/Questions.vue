@@ -45,14 +45,41 @@
 
         <Button variant="outline" @click="resetFilters">重置</Button>
 
-        <span class="ml-auto text-sm text-muted-foreground">
-          {{ loading ? '加载中…' : `共 ${total} 条` }}
-        </span>
+        <!-- 视图切换：表格适合筛选比对，卡片适合刷题浏览；偏好记在本地 -->
+        <div class="ml-auto flex items-center gap-2">
+          <span class="text-sm text-muted-foreground">
+            {{ loading ? '加载中…' : `共 ${total} 条` }}
+          </span>
+          <template v-if="selectedIds.length">
+            <Button size="sm" @click="pickerOpen = true">
+              加入题单（{{ selectedIds.length }}）
+            </Button>
+            <Button variant="ghost" size="sm" @click="selectedIds = []">清空</Button>
+          </template>
+          <div class="flex overflow-hidden rounded-md border border-border">
+            <button
+              type="button"
+              title="表格视图"
+              :class="viewToggleClass(viewMode === 'table')"
+              @click="setViewMode('table')"
+            >
+              <List class="size-4" />
+            </button>
+            <button
+              type="button"
+              title="卡片视图"
+              :class="viewToggleClass(viewMode === 'card')"
+              @click="setViewMode('card')"
+            >
+              <LayoutGrid class="size-4" />
+            </button>
+          </div>
+        </div>
       </CardContent>
     </Card>
 
-    <!-- 列表 -->
-    <Card class="flex min-h-0 flex-1 flex-col overflow-hidden py-0">
+    <!-- 列表：表格视图 -->
+    <Card v-if="viewMode === 'table'" class="flex min-h-0 flex-1 flex-col overflow-hidden py-0">
       <DataTable
         :data="items"
         :columns="columns"
@@ -101,6 +128,21 @@
           <span v-else class="italic text-muted-foreground">-</span>
         </template>
 
+        <template #cell-select="{ item }">
+          <!-- click.stop：行点击是「进详情」，勾选不能顺带跳转 -->
+          <button
+            type="button"
+            class="flex h-4 w-4 items-center justify-center rounded border border-border"
+            :class="item.id && selectedIds.includes(item.id) ? 'bg-primary' : ''"
+            @click.stop="toggleSelect(item.id)"
+          >
+            <span
+              v-if="item.id && selectedIds.includes(item.id)"
+              class="h-2 w-2 rounded-sm bg-primary-foreground"
+            />
+          </button>
+        </template>
+
         <template #cell-action="{ item }">
           <Button size="sm" @click.stop="handleDoQuestion(item)">做题</Button>
         </template>
@@ -120,6 +162,84 @@
         </template>
       </DataTable>
     </Card>
+
+    <!-- 列表：卡片视图（刷题浏览形态，参考 UltiCode 的题目卡） -->
+    <Card v-else class="flex min-h-0 flex-1 flex-col overflow-hidden py-0">
+      <div class="min-h-0 flex-1 overflow-y-auto p-4">
+        <div v-if="!items.length && !loading" class="py-16 text-center">
+          <p class="font-medium">暂无题目</p>
+          <p class="mt-1 text-sm text-muted-foreground">
+            调整筛选条件，或先创建一道题目
+          </p>
+        </div>
+
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <Card
+            v-for="q in items"
+            :key="q.id"
+            class="cursor-pointer py-0 transition-colors hover:bg-muted/40"
+            @click="handleDoQuestion(q)"
+          >
+            <CardContent class="space-y-3 p-4">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-xs text-muted-foreground">#{{ q.id }}</p>
+                  <p class="truncate font-medium">{{ q.title || '未命名题目' }}</p>
+                </div>
+                <span
+                  v-if="q.difficulty"
+                  class="inline-flex shrink-0 items-center rounded border px-2 py-0.5 text-xs"
+                  :class="difficultyClass(q.difficulty)"
+                >
+                  {{ q.difficulty }}
+                </span>
+              </div>
+
+              <div v-if="q.tags?.length" class="flex flex-wrap gap-1">
+                <Badge v-for="t in q.tags.slice(0, 3)" :key="t" variant="secondary">
+                  {{ t }}
+                </Badge>
+                <span v-if="q.tags.length > 3" class="text-xs text-muted-foreground">
+                  +{{ q.tags.length - 3 }}
+                </span>
+              </div>
+
+              <div>
+                <div class="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>通过率 {{ acceptRatePct(q) }}%</span>
+                  <span>{{ q.acceptedNum || 0 }}/{{ q.submitNum || 0 }}</span>
+                </div>
+                <div class="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    class="h-full rounded-full bg-[var(--chart-accent-primary)]"
+                    :style="{ width: acceptRatePct(q) + '%' }"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <!-- 卡片模式的哨兵（表格模式挂在 DataTable 的 footer 插槽里，两边同名 ref 不会同时挂载） -->
+        <div ref="sentinel" class="h-px w-full" />
+        <div v-if="loadingMore" class="py-4 text-center text-sm text-muted-foreground">
+          加载中…
+        </div>
+        <div
+          v-else-if="items.length && !hasMore"
+          class="py-4 text-center text-sm text-muted-foreground"
+        >
+          已加载全部 {{ total }} 条
+        </div>
+      </div>
+    </Card>
+
+    <!-- 批量加入题单：题目侧勾选 → 选题单。加入成功后清空勾选，避免用户重复提交同一批 -->
+    <BankPickerDialog
+      v-model:open="pickerOpen"
+      :question-ids="selectedIds"
+      @done="selectedIds = []"
+    />
   </div>
 </template>
 
@@ -136,10 +256,12 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { List, LayoutGrid } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
 import { useInfiniteList } from '@/composables/useInfiniteList'
 import { formatTime } from '@/utils/format'
 import { toast } from 'vue-sonner'
+import BankPickerDialog from './components/BankPickerDialog.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -151,6 +273,41 @@ const DIFFICULTIES = ['简单', '中等', '困难']
 const SORT_MAP: Record<string, { sortField?: string; sortOrder?: string }> = {
   default: {},
   newest: { sortField: 'id', sortOrder: 'desc' }
+}
+
+/** 视图模式持久化：表格适合筛选比对，卡片适合刷题浏览。 */
+const VIEW_KEY = 'code-forge-question-view'
+const viewMode = ref<'table' | 'card'>(
+  (localStorage.getItem(VIEW_KEY) as 'table' | 'card') || 'table'
+)
+const setViewMode = (mode: 'table' | 'card') => {
+  viewMode.value = mode
+  localStorage.setItem(VIEW_KEY, mode)
+}
+const viewToggleClass = (active: boolean) =>
+  active
+    ? 'flex items-center justify-center px-2 py-1.5 bg-muted text-foreground'
+    : 'flex items-center justify-center px-2 py-1.5 text-muted-foreground hover:bg-muted/60'
+
+const acceptRatePct = (q: QuestionVo) =>
+  q.submitNum && q.submitNum > 0
+    ? (((q.acceptedNum ?? 0) / q.submitNum) * 100).toFixed(1)
+    : '0.0'
+
+/**
+ * 已勾选的题目 id（批量加入题单用）。
+ *
+ * ⚠️ 全程字符串：雪花 id 19 位，转 number 会丢末位，后端按被舍入的 id 查不到题目。
+ * 列表是无限滚动的，勾选跨页累计 —— 翻页不清空，否则用户翻一页就丢一批选择。
+ */
+const selectedIds = ref<string[]>([])
+const pickerOpen = ref(false)
+
+const toggleSelect = (id?: string) => {
+  if (!id) return
+  selectedIds.value = selectedIds.value.includes(id)
+    ? selectedIds.value.filter((x) => x !== id)
+    : [...selectedIds.value, id]
 }
 
 const sortKey = ref('default')
@@ -179,9 +336,18 @@ watch(
   { deep: true }
 )
 
+/**
+ * 虚拟行的列宽约束：每一列都必须是**显式 px 宽度**且 th/td 共用（DataTable 会把
+ * col.class 同时绑到表头和数据单元格）。绝对定位的行脱离表格布局，只要有一列
+ * 宽度缺省或用百分比（基准与表头不一致），整行就会与表头错位。总和略小于容器，
+ * 行尾留白即可，不要溢出。
+ */
 const columns = [
-  { key: 'id', header: '题号', class: 'w-[80px]' },
-  { key: 'title', header: '标题' },
+  // 勾选列：批量加入题单。宽度从「题号」列匀出来，保证列宽总和与加列前一致，
+  // 否则虚拟行的 fixed 布局会把整行挤出容器。
+  { key: 'select', header: '', class: 'w-[44px]' },
+  { key: 'id', header: '题号', class: 'w-[166px]' },
+  { key: 'title', header: '标题', class: 'w-[230px]' },
   { key: 'difficulty', header: '难度', class: 'w-[90px]' },
   { key: 'tags', header: '标签', class: 'w-[190px]' },
   { key: 'acceptRate', header: '通过率', class: 'w-[150px]' },

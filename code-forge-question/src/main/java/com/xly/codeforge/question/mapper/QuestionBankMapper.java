@@ -3,7 +3,6 @@ package com.xly.codeforge.question.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.xly.codeforge.model.entity.QuestionBank;
 import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
 
 import java.util.Collection;
 import java.util.List;
@@ -31,21 +30,12 @@ public interface QuestionBankMapper extends BaseMapper<QuestionBank> {
      * @param bankIds 题单 id 集合（不可为空，调用方需先判空）
      * @return 每个题单一行：{@code [question_bank_id, count]}
      */
-    @Select("""
-            <script>
-            SELECT question_bank_id, COUNT(DISTINCT question_id) AS cnt
-            FROM question_bank_question
-            WHERE question_bank_id IN
-            <foreach collection="bankIds" item="id" open="(" separator="," close=")">#{id}</foreach>
-            GROUP BY question_bank_id
-            </script>
-            """)
     List<BankQuestionCount> countQuestionsByBankIds(@Param("bankIds") Collection<Long> bankIds);
 
     /**
      * 统计某个用户对多个题单各自已通过的题目数
      *
-     * <p>判定「已通过」的依据是 {@code question_submit.verdict = 'ACCEPTED'}
+     * <p>判定「已通过」的依据是 {@code submission.verdict = 'ACCEPTED'}
      * （由判题服务写入，见 {@code VerdictEnum}），而不是 {@code status = 2} ——
      * status 描述的是判题流程是否走完，verdict 才是代码本身的结论。</p>
      *
@@ -58,20 +48,6 @@ public interface QuestionBankMapper extends BaseMapper<QuestionBank> {
      * @param userId  用户 id
      * @return 每个题单一行：{@code [question_bank_id, solved_count]}
      */
-    @Select("""
-            <script>
-            SELECT bq.question_bank_id, COUNT(DISTINCT s.question_id) AS cnt
-            FROM question_bank_question bq
-            INNER JOIN question_submit s
-                    ON s.question_id = bq.question_id
-                   AND s.user_id = #{userId}
-                   AND s.verdict = 'ACCEPTED'
-                   AND s.is_delete = 0
-            WHERE bq.question_bank_id IN
-            <foreach collection="bankIds" item="id" open="(" separator="," close=")">#{id}</foreach>
-            GROUP BY bq.question_bank_id
-            </script>
-            """)
     List<BankQuestionCount> countSolvedByBankIds(@Param("bankIds") Collection<Long> bankIds,
                                                  @Param("userId") Long userId);
 

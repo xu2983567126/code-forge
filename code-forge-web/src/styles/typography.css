@@ -1,42 +1,34 @@
 /* ===========================================================================
- * @ulticode/theme — typography foundation
+ * 排版基础层（typography foundation）
  *
- * Single source of truth for font families, sizes, line heights, weights,
- * letter spacing, and density-aware semantic roles. Replaces the previously
- * ad-hoc typography declarations in `shared/design-system/style.css` and
- * every app-local override.
+ * 字体家族、字号、行高、字重、字距与「密度感知语义角色」的唯一来源。
  *
- * Layered contract:
- *   1. Foundation tokens  (--uc-font-*, --uc-text-*, --uc-leading-*,
- *                          --uc-font-weight-*, --uc-tracking-*)
- *   2. Tailwind aliases   (--text-xs/sm/... — keep existing utility classes
- *                          working through the migration)
- *   3. Semantic roles     (--uc-type-body-*, --uc-type-control-*, ...)
- *   4. Utility classes    (.uc-type-body, .uc-type-page-title, ...)
- *   5. Locale profiles    (:root[lang="zh-CN"] / :root[lang="en-US"])
- *   6. Density profiles   (:root + [data-uc-density="compact"])
+ * 分层契约：
+ *   1. 基础令牌  (--uc-font-*, --uc-text-*, --uc-leading-*,
+ *                 --uc-font-weight-*, --uc-tracking-*)
+ *   2. Tailwind 别名 (--text-xs/sm/... — 让既有工具类继续工作)
+ *   3. 语义角色  (--uc-type-body-*, --uc-type-control-*, ...)
+ *   4. 工具类    (.uc-type-body, .uc-type-page-title, ...)
+ *   5. 语言档位  (:root[lang="zh-CN"] / :root[lang="en-US"])
+ *   6. 密度档位  ([data-uc-density="compact"])
  *
- * Apps may opt into a density profile by setting
- * `document.documentElement.dataset.ucDensity = 'comfortable' | 'compact'`
- * (see shared/theme/src/typography.ts → applyTypographyDensity).
+ * 密度档位目前是预留：没有任何代码写入 data-uc-density，实际恒为默认档。
+ * 需要时由应用层在 <html> 上设置该属性，组件不得自行设置。
  *
- * See docs/SHARED_TYPOGRAPHY_DESIGN.md for the design rationale and the
- * migration plan that this file enables.
+ * 视觉语言与调色板契约见 docs/设计契约-Garden设计系统.md。
  * =========================================================================== */
 
 /* ---------------------------------------------------------------------------
  * Font loading (jsDelivr CDN, see design notes below)
  *
- * The shared pipeline loads both editorial Latin faces and Simplified Chinese
- * faces. Locale profiles below select the primary family without duplicating
- * font loading or component styles.
+ * 展示体（Instrument Serif / Newsreader）与简体中文字体各加载一次；下文的
+ * 语言档位只切换首选家族，不重复加载、也不复制组件样式。
  * --------------------------------------------------------------------------- */
-/* Garden typography (extracted from the landing page design):
- *   - Display/headings: Instrument Serif / Newsreader (+ Noto Serif SC for CJK)
- *   - UI/body: Inter (+ Noto Sans SC fallbacks)
- *   - Code/data: JetBrains Mono
- * Loaded once here so both apps share a single font pipeline.
- * See packages/design-system/docs/GARDEN_DESIGN_SPEC.md §4. */
+/* Garden 排版三层：
+ *   - 展示/标题：Instrument Serif / Newsreader（中文回落 Noto Serif SC）
+ *   - UI/正文：Inter（中文回落 Noto Sans SC）
+ *   - 代码/数据：JetBrains Mono
+ * 见 docs/设计契约-Garden设计系统.md §5。 */
 @import url("https://cdn.jsdelivr.net/npm/@fontsource/inter@5.2.5/index.min.css");
 @import url("https://cdn.jsdelivr.net/npm/@fontsource/instrument-serif@5.2.5/index.min.css");
 @import url("https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5.2.5/index.min.css");
@@ -103,12 +95,11 @@
 }
 
 /* ---------------------------------------------------------------------------
- * 1a. Locale design profiles
+ * 1a. 语言设计档位
  *
- * `html[lang]` is the single runtime selector. Locale preference owns the
- * attribute; the design system owns the metrics that respond to it. Color
- * semantics and app density remain shared so language changes never turn
- * into a second product theme.
+ * `html[lang]` 是唯一选择器。当前 `index.html` 静态写死 `lang="zh-CN"`，
+ * 因此 zh-CN 档位生效；en-US 档位已定义但没有切换入口（应用是单语的）。
+ * 颜色语义与密度档位始终共享，切换语言不会变成第二套产品主题。
  * --------------------------------------------------------------------------- */
 
 :root {
@@ -306,15 +297,12 @@
 }
 
 /* ---------------------------------------------------------------------------
- * 6. Density profiles
+ * 6. 密度档位
  *
- * Apps opt in by setting `data-uc-density` on <html>:
- *   - 'comfortable' (default for console): generous reading surface
- *   - 'compact'     (default for management): dense tables, queues
- *
- * The helper in shared/theme/src/typography.ts (applyTypographyDensity)
- * owns the only place that writes this attribute. Apps MUST NOT set it
- * from component code.
+ * 目前是预留能力：没有任何代码写入 `<html data-uc-density>`，实际恒为默认档。
+ * 需要时由应用层统一设置该属性（组件不得自行设置），两档含义：
+ *   - 'comfortable'：宽松阅读面（默认）
+ *   - 'compact'    ：密集表格、队列
  * --------------------------------------------------------------------------- */
 
 :root,
@@ -335,11 +323,10 @@
 }
 
 /* ---------------------------------------------------------------------------
- * 6. Shared markdown contract
+ * 7. Markdown 落版契约
  *
- * `.markdown-block` is the canonical class for rendered Markdown in both
- * apps. Management's local `.prose` is aliased to the same rules for the
- * duration of the migration and will be removed once the codebase is clean.
+ * `.markdown-block` 是渲染 Markdown 的规范类；`.prose` 是历史别名，映射到同一组
+ * 规则，仅作为兼容保留，新代码不要使用。
  * --------------------------------------------------------------------------- */
 
 .markdown-block,

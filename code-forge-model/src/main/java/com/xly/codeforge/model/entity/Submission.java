@@ -1,20 +1,23 @@
 package com.xly.codeforge.model.entity;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableLogic;
-import com.baomidou.mybatisplus.annotation.TableName;
-import lombok.Data;
+import com.baomidou.mybatisplus.annotation.*;
+import lombok.*;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.Date;
 
 /**
  * 题目提交
- * @TableName question_submit
+ * @TableName submission
  */
-@TableName(value ="question_submit")
-@Data
-public class Submission {
+@TableName(value ="submission")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Submission implements Serializable {
     /**
      * id
      */
@@ -56,6 +59,29 @@ public class Submission {
     private String verdict;
 
     /**
+     * 判题代次号：每次抢占判题权 / 租约回收 +1
+     *
+     * <p>与 {@link #currentAttemptId} 组成双轴 fencing：单靠代次号分不清「同一次尝试的
+     * 重复写」与「新一轮抢占」，单靠 attemptId 挡不住「同一次尝试的落后写入」，两者组合才严密。</p>
+     */
+    private Long generation;
+
+    /**
+     * 本次判题 worker 的 UUID（全局唯一）
+     *
+     * <p>持有租约期间非空；提交回到 WAITING 或抵达终态（SUCCEED/FAILED）后被清 NULL。</p>
+     */
+    private String currentAttemptId;
+
+    /**
+     * 判题租约过期时间（DB 时钟）
+     *
+     * <p>NULL = 无租约（WAITING 或已终态）。reaper 据此回收「卡在判题中」的僵尸提交，
+     * 使其复位为 WAITING 并被重新分发 —— 进程崩溃也不再永久卡死。</p>
+     */
+    private Date judgingLeaseExpiresAt;
+
+    /**
      * 题目 id
      */
     private Long questionId;
@@ -81,4 +107,7 @@ public class Submission {
     @TableLogic
     private Integer isDelete;
 
+    @Serial
+    @TableField(exist = false)
+    private static final long serialVersionUID = 1L;
 }

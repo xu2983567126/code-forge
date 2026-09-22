@@ -3,11 +3,12 @@ package com.xly.codeforge.submission.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.IService;
-import com.xly.codeforge.model.dto.submission.SubmissionAddRequest;
+import com.xly.codeforge.model.dto.judge.RunJudgeRequest;
+import com.xly.codeforge.model.dto.submission.JudgeInfo;
+import com.xly.codeforge.model.dto.submission.SubmissionCreateRequest;
 import com.xly.codeforge.model.dto.submission.SubmissionQueryRequest;
 import com.xly.codeforge.model.entity.Submission;
 import com.xly.codeforge.model.entity.User;
-import com.xly.codeforge.model.vo.RunCodeVO;
 import com.xly.codeforge.model.vo.SubmissionVO;
 
 import java.util.List;
@@ -18,11 +19,11 @@ public interface SubmissionService extends IService<Submission> {
     /**
      * 提交题目（落库 + 异步判题）
      *
-     * @param submissionAddRequest 题目提交信息
+     * @param submissionCreateRequest 题目提交信息
      * @param loginUser            当前登录用户
      * @return 提交记录 id
      */
-    long submit(SubmissionAddRequest submissionAddRequest, User loginUser);
+    long submit(SubmissionCreateRequest submissionCreateRequest, User loginUser);
 
     /**
      * 获取查询条件
@@ -78,13 +79,26 @@ public interface SubmissionService extends IService<Submission> {
     Page<SubmissionVO> getSubmissionVOPage(Page<Submission> submissionPage, User loginUser);
 
     /**
-     * 试运行代码（同步返回，不落库、不产生提交记录）
+     * 试运行判题（异步：立刻返回 runId，结果走轮询端点；不落库、不产生提交记录）
      *
-     * @param runCodeRequest 试运行请求
-     * @param loginUser      当前登录用户
-     * @return 运行结果
+     * <p>与正式提交的区别：本方法<b>不</b>产生 submission、不写数据库，用例由前端带来（可编辑）。
+     * 仅做登录 / 限流 / 入参裁剪，判题逻辑全在 judge-service 的 {@code runAndJudge}。</p>
+     *
+     * @param runJudgeRequest 试运行判题请求（题目 id / 代码 / 语言 / 可编辑用例）
+     * @param loginUser       当前登录用户（必须登录）
+     * @return 本次试运行的 runId（用于后续轮询结果）
      */
-    RunCodeVO runCode(com.xly.codeforge.model.dto.judge.RunCodeRequest runCodeRequest, User loginUser);
+    String runWithJudge(RunJudgeRequest runJudgeRequest, User loginUser);
+
+    /**
+     * 取试运行结果（轮询端点数据源）。
+     *
+     * <p>结果不落库，只在 judge-service 内存缓存短暂停留；未就绪/已过期返回 {@code null}。</p>
+     *
+     * @param runId 试运行 id
+     * @return 聚合判题结论 + 逐用例明细；未就绪/已过期返回 {@code null}
+     */
+    JudgeInfo getRunWithJudgeResult(String runId);
 
     /**
      * 获取某用户在某题上的最佳提交
@@ -130,4 +144,45 @@ public interface SubmissionService extends IService<Submission> {
      * @return 回填的记录数
      */
     int backfillVerdict();
+
+    /**
+     * 判题并发 fencing：抢占租约（CAS）
+     *
+     * <p>把 WAITING 的提交原子置为 RUNNING 并写入 attemptId + 租约过期时间。
+     * 返回 1=抢到；0=已被别人抢走或已非 WAITING（含已终态 / 重复事件）。</p>
+     *
+     * @param req 含 id / attemptId / generation / ttlSeconds
+     * @return 受影响行数（0 或 1）
+     */
+    int acquireLease(com.xly.codeforge.model.dto.submission.SubmissionFenceRequest req);
+
+    /**
+     * 判题并发 fencing：心跳续租
+     *
+     * <p>仅按 attemptId 续租；返回 0 表示已丢租约（被 reaper 回收重派）。</p>
+     *
+     * @param req 含 id / attemptId / ttlSeconds
+     * @return 受影响行数（0 或 1）
+     */
+    int renewLease(com.xly.codeforge.model.dto.submission.SubmissionFenceRequest req);
+
+    /**
+     * 判题并发 fencing：写回判题结论（SUCCEED）
+     *
+     * <p>CAS 必须同时匹配 generation + attemptId；返回 0 表示结果已 stale（被重派），丢弃不写。</p>
+     *
+     * @param req 含 id / generation / attemptId / status / verdict / judgeInfo
+     * @return 受影响行数（0 或 1）
+     */
+    int writeVerdict(com.xly.codeforge.model.dto.submission.SubmissionVerdictRequest req);
+
+    /**
+     * 判题并发 fencing：判题失败兜底（FAILED + SYSTEM_ERROR）
+     *
+     * <p>与 {@link #writeVerdict} 同一条 CAS 路径；返回 0 表示已丢租约，跳过（reaper 会重派）。</p>
+     *
+     * @param req 含 id / attemptId / generation
+     * @return 受影响行数（0 或 1）
+     */
+    int markFailed(com.xly.codeforge.model.dto.submission.SubmissionFenceRequest req);
 }

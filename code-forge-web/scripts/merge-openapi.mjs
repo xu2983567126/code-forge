@@ -186,6 +186,76 @@ function mergeTags(acc, tags, svc) {
   }
 }
 
+/**
+ * 把「主键类」的 int64 字段由 number 改成 string。
+ *
+ * ── 背景 ──────────────────────────────────────────────────────────────
+ * 后端主键是雪花 Long（19 位），`JsonConfig` 已统一序列化为字符串以规避
+ * JS 的 53 位精度天花板。但 OpenAPI 把 `int64` 映射为 TS `number`，导致生成
+ * 的 SDK 类型（`id` / `questionId` / `userId` …）是 number，前端一 `parseInt`
+ * 就丢精度 → 后端按被舍入后的 id 查不到题目。
+ *
+ * 这里在合并阶段把**命名像 id 的** int64 字段就地改写成 `string`，使生成的
+ * SDK 类型与后端「id 即字符串」的契约对齐，从源头消灭这一类 bug。
+ *
+ * 只 targeting 名称像 id 的字段（`id` 或以 `Id` 结尾），避免误伤其它
+ * int64（如分页 `total` 仍保持 number，由后端单独处理）。
+ */
+function isIdKey(name) {
+  if (typeof name !== 'string') return false
+  const n = name.toLowerCase()
+  if (n === 'id' || n === 'ids') return true
+  // 驼峰里的独立 Id 段：userId / questionId / questionIdList / idList。
+  // ⚠️ 只认「Id」这个驼峰段（前接小写、后接大写或收尾），不认小写 id ——
+  // 否则 index / valid / idle 这类词会被误判成主键。
+  if (/(^|[a-z])Id([A-Z]|$)/.test(name)) return true
+  // 复数收尾：bankIds / questionIds（s 小写，上面那条接不住）
+  if (/Ids$/.test(name)) return true
+  return false
+}
+
+/** 把子树里所有 int64（含 array.items / 嵌套对象）就地改写成 string。 */
+function convertAllInt64InSubtree(node) {
+  if (node === null || typeof node !== 'object') return
+  if (Array.isArray(node)) {
+    for (const item of node) convertAllInt64InSubtree(item)
+    return
+  }
+  if (node.type === 'integer' && /^(u?int64)$/.test(node.format || '')) {
+    node.type = 'string'
+    delete node.format
+  }
+  for (const v of Object.values(node)) convertAllInt64InSubtree(v)
+}
+
+function normalizeInt64ToString(node, key) {
+  if (node === null || typeof node !== 'object') return
+  if (Array.isArray(node)) {
+    for (const item of node) normalizeInt64ToString(item, key)
+    return
+  }
+  // 参数对象（path / query）：name 像 id 且 schema 是 int64
+  if (
+    node.in &&
+    node.name &&
+    isIdKey(node.name) &&
+    node.schema &&
+    node.schema.type === 'integer' &&
+    /^(u?int64)$/.test(node.schema.format || '')
+  ) {
+    node.schema.type = 'string'
+    delete node.schema.format
+  }
+  for (const [k, v] of Object.entries(node)) {
+    if (v && typeof v === 'object') {
+      // 名称像 id：整棵子树（含 array items / 嵌套）里的 int64 都转 string，
+      // 覆盖 idList / ids 这类集合字段
+      if (isIdKey(k)) convertAllInt64InSubtree(v)
+      else normalizeInt64ToString(v, k)
+    }
+  }
+}
+
 async function main() {
   const all = []
   for (const svc of SERVICES) {
@@ -234,6 +304,10 @@ async function main() {
     mergeTags(tags, doc.tags, svc.name)
     title = title || doc.info?.title
   }
+
+  // 主键类 int64（id / *Id）→ string，对齐后端字符串序列化（见 normalizeInt64ToString）
+  normalizeInt64ToString(paths)
+  normalizeInt64ToString(schemas)
 
   // 清掉注入时带的内部标记
   for (const item of Object.values(paths)) delete item.__svc

@@ -33,8 +33,8 @@
 --
 --   改动：
 --     · question.difficulty            加列（难度：简单/中等/困难，默认 '简单'）
---     · question_submit.verdict        加列（判题结果 ACCEPTED/WRONG_ANSWER/...）
---     · question_submit.idx_status_verdict   加联合索引（按 verdict 统计/筛选）
+--     · submission.verdict        加列（判题结果 ACCEPTED/WRONG_ANSWER/...）
+--     · submission.idx_status_verdict   加联合索引（按 verdict 统计/筛选）
 --     · 建表 question_bank             题单主表
 --     · 建表 question_bank_question    题单-题目关联（硬删除，UNIQUE(bank,question)）
 --     · 建表 question_favourite        题目收藏（硬删除，UNIQUE(question,user)）

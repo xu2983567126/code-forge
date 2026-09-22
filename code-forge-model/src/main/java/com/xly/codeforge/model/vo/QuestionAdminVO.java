@@ -15,6 +15,8 @@ public class QuestionAdminVO extends QuestionVO {
     private String answer;                // 题目答案（普通字符串）
     private List<JudgeCase> judgeCase;    // 判题用例（转换后的对象列表）
     private Integer isDelete;             // 逻辑删除标志
+    private String spjCode;               // 特判程序源码（compareMode=SPJ 时由沙箱执行；仅 admin/作者可见）
+    private String spjLanguage;           // 特判程序语言，对齐 submission.language
 
     /**
      * QuestionAdminVO → Question 实体
@@ -59,6 +61,8 @@ public class QuestionAdminVO extends QuestionVO {
             adminVO.setJudgeCase(JSONUtil.toList(judgeCaseStr, JudgeCase.class));
         }
         adminVO.setIsDelete(question.getIsDelete());
+        adminVO.setSpjCode(question.getSpjCode());
+        adminVO.setSpjLanguage(question.getSpjLanguage());
         return adminVO;
     }
 }

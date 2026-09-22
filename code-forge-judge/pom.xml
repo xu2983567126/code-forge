@@ -24,19 +24,15 @@
         </dependency>
         <dependency>
             <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-openfeign</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-loadbalancer</artifactId>
         </dependency>
 
-        <!-- RemoteCodeSandbox 用 hutool 发 HTTP -->
+        <!-- RemoteSandbox 用 hutool 发 HTTP -->
         <dependency>
             <groupId>cn.hutool</groupId>
             <artifactId>hutool-all</artifactId>
         </dependency>
-        <!-- RemoteCodeSandbox 的 HMAC-SHA256 签名 -->
+        <!-- RemoteSandbox 的 HMAC-SHA256 签名 -->
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk18on</artifactId>
@@ -72,6 +68,24 @@
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-api</artifactId>
+        </dependency>
+        <!-- ===== 异步判题（M7-1）：消费 judge.queue。与 submission 侧同为 amqp starter，
+             两侧自动配置一致（RabbitTemplate / RabbitAdmin / 监听容器工厂）。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+
+        <!-- ===== P0 可观测（M7）：Micrometer 指标 + actuator 暴露 =====
+             暴露 /actuator/metrics 与 /actuator/prometheus 供 Grafana 抓取。
+             micrometer-core 由 actuator 间接引入；prometheus 注册表单独引入以便输出 scrape 格式。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
     </dependencies>
 

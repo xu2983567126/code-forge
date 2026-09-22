@@ -20,7 +20,7 @@
 import { ref, onMounted, onBeforeUnmount, watch } from "vue";
 import * as monaco from "monaco-editor";
 import loader from "@monaco-editor/loader";
-import { usePreferredDark } from "@vueuse/core";
+import { useTheme } from "@/lib/theme/useTheme";
 import { configureMonacoWorkers } from "@/utils/monaco-workers";
 import { registerSolarizedThemes } from "@/lib/monaco-solarized-theme";
 
@@ -44,7 +44,9 @@ const emit = defineEmits<{
 
 const editorRef = ref<HTMLElement | null>(null);
 let editorInstance: monaco.editor.IStandaloneCodeEditor | null = null;
-const isDark = usePreferredDark();
+// 跟随**站点主题**而不是系统偏好：顶栏切换器选了浅色/深色就该立即一致，
+// 否则会出现「页面是浅色、编辑器还是深色」的割裂
+const { resolved: siteTheme } = useTheme();
 
 // 初始化编辑器
 const initEditor = async () => {
@@ -60,7 +62,7 @@ const initEditor = async () => {
   const createdEditor = monacoInstance.editor.create(editorRef.value, {
     value: initialValue,
     language: "markdown",
-    theme: isDark.value ? "vs-dark" : "vs",
+    theme: siteTheme.value === "dark" ? "vs-dark" : "vs",
     automaticLayout: true,
     minimap: { enabled: false },
     scrollBeyondLastLine: false,
@@ -107,9 +109,9 @@ watch(
 );
 
 // 监听主题变化
-watch(isDark, (newVal) => {
+watch(siteTheme, (value) => {
   if (editorInstance) {
-    monaco.editor.setTheme(newVal ? "vs-dark" : "vs");
+    monaco.editor.setTheme(value === "dark" ? "vs-dark" : "vs");
   }
 });
 

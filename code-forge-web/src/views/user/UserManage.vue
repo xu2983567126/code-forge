@@ -149,7 +149,7 @@ import { toast } from 'vue-sonner'
 /** 后端 `user.role` 的取值：USER / ADMIN / BAN（封禁即为该角色）。 */
 const ROLE_OPTIONS = ['USER', 'ADMIN', 'BAN']
 
-const selectedIds = ref<number[]>([])
+const selectedIds = ref<string[]>([])
 const statCards = ref([
   { label: '总用户', value: 0 },
   { label: '管理员', value: 0 },
@@ -171,6 +171,7 @@ const { items, filters, loading, loadingMore, total, hasMore, reload, loadMore, 
 
 watch([() => filters.username, () => filters.role], () => applyFilters())
 
+// 列宽约束见 Questions.vue 的 columns 注释：每列显式 px、th/td 共用。
 const columns = [
   { key: 'select', header: '', class: 'w-[50px]' },
   { key: 'id', header: 'ID', class: 'w-[200px]' },
@@ -180,9 +181,9 @@ const columns = [
   { key: 'action', header: '操作', class: 'w-[200px]' }
 ]
 
-const isSelected = (id?: number) => (id != null ? selectedIds.value.includes(id) : false)
+const isSelected = (id?: string) => (id != null ? selectedIds.value.includes(id) : false)
 
-const toggleSelect = (id?: number) => {
+const toggleSelect = (id?: string) => {
   if (id == null) return
   const idx = selectedIds.value.indexOf(id)
   if (idx >= 0) selectedIds.value.splice(idx, 1)

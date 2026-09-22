@@ -30,17 +30,6 @@ public interface QuestionMapper extends BaseMapper<Question> {
      * @param excludeId 需要排除的题目 id（通常是当前正在浏览的题），可为 null
      * @return 随机题目的 id；题库为空时返回 null
      */
-    @Select("""
-            <script>
-            SELECT id FROM question
-            WHERE is_delete = 0
-            <if test="excludeId != null">
-              AND id != #{excludeId}
-            </if>
-            ORDER BY RAND()
-            LIMIT 1
-            </script>
-            """)
     Long selectRandomQuestionId(@Param("excludeId") Long excludeId);
 
     /**

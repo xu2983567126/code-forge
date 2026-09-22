@@ -51,9 +51,6 @@ public class QuestionBank implements Serializable {
 
     /**
      * 是否公开：0-私有 1-公开
-     *
-     * <p>用 {@link Integer} 而非 {@code Boolean}：DB 列是 {@code tinyint}，
-     * 且 MyBatis-Plus 对 Boolean ↔ tinyint 的映射在不同版本行为不一致，显式用 Integer 更稳。</p>
      */
     private Integer isPublic;
 

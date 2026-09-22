@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xly.codeforge.question.mapper.QuestionMapper">
+
+    <!-- 随机取一道未删除的题目的 id（排除指定题） -->
+    <select id="selectRandomQuestionId" resultType="java.lang.Long">
+        SELECT id FROM question
+        WHERE is_delete = 0
+        <if test="excludeId != null">
+          AND id != #{excludeId}
+        </if>
+        ORDER BY RAND()
+        LIMIT 1
+    </select>
+
+</mapper>

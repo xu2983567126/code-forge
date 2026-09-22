@@ -7,6 +7,7 @@ import com.xly.codeforge.model.dto.questionbankquestion.QuestionBankQuestionBulk
 import com.xly.codeforge.model.dto.questionbankquestion.QuestionBankQuestionQueryRequest;
 import com.xly.codeforge.model.entity.QuestionBankQuestion;
 import com.xly.codeforge.model.entity.User;
+import com.xly.codeforge.model.vo.QuestionVO;
 
 import java.util.List;
 
@@ -77,4 +78,19 @@ public interface QuestionBankQuestionService extends IService<QuestionBankQuesti
      * @return 题目 id 分页
      */
     Page<Long> pageQuestionIdsInBank(long questionBankId, long current, long pageSize);
+
+    /**
+     * 分页获取题单内的题目详情
+     *
+     * <p>与 {@link #pageQuestionIdsInBank} 的区别：这里直接返回组装好的 {@code QuestionVO}，
+     * 调用方一次请求即可渲染。题单与题目同库同服务，JOIN 不涉及跨服务，
+     * 因此不必走「先拿 id 再回查题目」的两段式。</p>
+     *
+     * @param questionBankId 题单 id
+     * @param current        当前页
+     * @param pageSize       页大小
+     * @param loginUser      当前登录用户（用于 VO 填充与私有题单读权限校验）
+     * @return 题目 VO 分页；私有题单越权按 404 处理
+     */
+    Page<QuestionVO> pageQuestionsInBank(long questionBankId, long current, long pageSize, User loginUser);
 }

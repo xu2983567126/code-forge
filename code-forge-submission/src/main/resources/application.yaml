@@ -6,6 +6,8 @@ spring:
     nacos:
       discovery:
         server-addr: 127.0.0.1:8848
+        username: nacos
+        password: 123456
   # 数据库配置（todo 按本机实际情况替换）
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -18,6 +20,18 @@ spring:
       host: 127.0.0.1            # 实测可通（WSL 镜像网络，Windows 侧直连即可）
       port: 6379
       database: 0
+    # ===== 异步判题（M7-1）：RabbitMQ 任务队列 =====
+    # 本机 broker 在 D:\Env\rabbitmq_server（guest/guest 仅允许 localhost）。
+  rabbitmq:
+    host: 127.0.0.1
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+    listener:
+      simple:
+        # 手动 ACK：消费成功 basicAck；失败 basicNack(requeue=false)→死信，由 JudgingLeaseReaper 按租约重派
+        acknowledge-mode: manual
 
 server:
   address: 0.0.0.0
@@ -26,7 +40,17 @@ server:
     # 与 question-service 的 /api/question 区分，避免路由冲突
     context-path: /api/submission
 
+# ===== 提交频率限流（M6） =====
+# 同一用户每窗口最多 limit 次提交，防刷爆判题。键按 userId（本机 IP 全 127.0.0.1，IP 限流失效）。
+code-forge:
+  rate-limit:
+    submission:
+      window-seconds: 60
+      limit: 30
+
 mybatis-plus:
+  # 原生 SQL 抽到 src/main/resources/mapper/*.xml；注解方式仍照常用，两者互补。
+  mapper-locations: classpath*:/mapper/**/*.xml
   configuration:
     # true：DB 列 snake_case（user_id）自动映射到 Java 字段驼峰（userId）。
     # Java 侧字段名 / VO / DTO / 前端 JSON 保持驼峰不变。

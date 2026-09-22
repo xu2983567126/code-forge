@@ -6,6 +6,21 @@ spring:
     nacos:
       discovery:
         server-addr: 127.0.0.1:8848
+        username: nacos
+        password: 123456
+  # ===== 异步判题（M7-1）：RabbitMQ 任务队列 =====
+  # 本机 broker 在 D:\Env\rabbitmq_server（guest/guest 仅允许 localhost）。
+  # 与 submission 侧保持同一 broker，否则派发与消费落不到一处。
+  rabbitmq:
+    host: 127.0.0.1
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+    listener:
+      simple:
+        # 手动 ACK：消费成功 basicAck；失败 basicNack(requeue=false)→死信，由 JudgingLeaseReaper 按租约重派
+        acknowledge-mode: manual
 
 server:
   address: 0.0.0.0
@@ -13,6 +28,23 @@ server:
   servlet:
     context-path: /api/judge
 
-# 代码沙箱类型：remote / example（见 CodeSandboxFactory）
-codesandbox:
+# 代码沙箱类型：remote / example（见 SandboxFactory）
+sandbox:
   type: remote
+  # 沙箱并发配额上限（唯一真相源，与沙箱侧「并发已达上限 4」对齐）。
+  # 所有经 SandboxProxy 的沙箱调用（正式判题 / 试运行 / SPJ 特判）共享这一把信号量，
+  # 保证总在途沙箱调用 ≤ 4，不触发沙箱「并发已达上限」拒绝（否则判题侧会翻译成 SYSTEM_ERROR 假判）。
+  # 调沙箱上限时，必须同步改这里（见 SandboxConcurrencyLimiter）。
+  concurrency: 8
+
+# ===== P0 可观测（M7）：暴露指标端点供 Grafana 抓取 =====
+# judge 是判题热点，指标最全（队列深度 / DLQ 堆积 / 判题耗时 / fencing 拦截）；
+# 不单独开 management 端口，复用 8105（context-path 下即 /api/judge/actuator）。
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  metrics:
+    tags:
+      application: code-forge-judge

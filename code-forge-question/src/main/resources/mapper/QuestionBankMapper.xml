@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xly.codeforge.question.mapper.QuestionBankMapper">
+
+    <!-- 统计多个题单各自的题目数量 -->
+    <select id="countQuestionsByBankIds" resultType="com.xly.codeforge.question.mapper.QuestionBankMapper$BankQuestionCount">
+        SELECT question_bank_id, COUNT(DISTINCT question_id) AS cnt
+        FROM question_bank_question
+        WHERE question_bank_id IN
+        <foreach collection="bankIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+        GROUP BY question_bank_id
+    </select>
+
+    <!-- 统计某个用户对多个题单各自已通过的题目数 -->
+    <select id="countSolvedByBankIds" resultType="com.xly.codeforge.question.mapper.QuestionBankMapper$BankQuestionCount">
+        SELECT bq.question_bank_id, COUNT(DISTINCT s.question_id) AS cnt
+        FROM question_bank_question bq
+        INNER JOIN submission s
+                ON s.question_id = bq.question_id
+               AND s.user_id = #{userId}
+               AND s.verdict = 'ACCEPTED'
+               AND s.is_delete = 0
+        WHERE bq.question_bank_id IN
+        <foreach collection="bankIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+        GROUP BY bq.question_bank_id
+    </select>
+
+</mapper>

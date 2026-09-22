@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xly.codeforge.submission.mapper.SubmissionMapper">
+
+    <!-- 查询某用户在某题上「已通过」的题目 id 集合 -->
+    <select id="selectAcceptedQuestionIds" resultType="java.lang.Long">
+        SELECT DISTINCT question_id FROM submission
+        WHERE user_id = #{userId}
+          AND verdict = 'ACCEPTED'
+          AND is_delete = 0
+          AND question_id IN
+        <foreach collection="questionIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </select>
+
+    <!-- ⑤ reaper 捞过期租约（主回收路径）：过期 RUNNING + 有租约 -->
+    <select id="selectExpiredJudgingForUpdate" resultType="com.xly.codeforge.model.entity.Submission">
+        <![CDATA[
+        SELECT * FROM submission
+        WHERE status = 1 AND judging_lease_expires_at IS NOT NULL
+          AND judging_lease_expires_at < NOW() AND is_delete = 0
+        ORDER BY judging_lease_expires_at
+        LIMIT #{batchSize}
+        FOR UPDATE SKIP LOCKED
+        ]]>
+    </select>
+
+    <!-- 二级安全网：捞「无租约且闲置过久」的卡住行 -->
+    <select id="selectStuckWithoutLease" resultType="com.xly.codeforge.model.entity.Submission">
+        <![CDATA[
+        SELECT * FROM submission
+        WHERE (status = 0 OR (status = 1 AND judging_lease_expires_at IS NULL))
+          AND update_time < DATE_SUB(NOW(), INTERVAL #{idleSeconds} SECOND) AND is_delete = 0
+        ORDER BY update_time
+        LIMIT #{batchSize}
+        FOR UPDATE SKIP LOCKED
+        ]]>
+    </select>
+
+    <!-- 批量统计若干用户的提交数与通过题目数 -->
+    <select id="selectStatsByUserIds" resultType="com.xly.codeforge.model.dto.SubmissionStatsItemDTO">
+        SELECT user_id AS userId,
+               COUNT(*) AS submitCount,
+               COUNT(DISTINCT CASE WHEN verdict = 'ACCEPTED' THEN question_id END) AS acceptedCount
+        FROM submission
+        WHERE is_delete = 0
+          AND user_id IN
+        <foreach collection="userIds" item="uid" open="(" separator="," close=")">#{uid}</foreach>
+        GROUP BY user_id
+    </select>
+
+    <!-- 批量统计若干题目的提交数与通过数 -->
+    <select id="selectStatsByQuestionIds" resultType="com.xly.codeforge.model.dto.QuestionSubmissionStatsDTO">
+        SELECT question_id AS questionId,
+               COUNT(*) AS submitCount,
+               COUNT(CASE WHEN verdict = 'ACCEPTED' THEN 1 END) AS acceptedCount
+        FROM submission
+        WHERE is_delete = 0
+          AND question_id IN
+        <foreach collection="questionIds" item="qid" open="(" separator="," close=")">#{qid}</foreach>
+        GROUP BY question_id
+    </select>
+
+    <!-- 统计符合条件的提交数（今日 / 总数共用） -->
+    <select id="countSubmissions" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM submission
+        WHERE is_delete = 0
+        <if test="todayStart != null">
+          AND create_time &gt;= #{todayStart}
+        </if>
+    </select>
+
+    <!-- 按日期分组统计提交数（用于趋势图 / 热力图） -->
+    <select id="countByDay" resultType="com.xly.codeforge.submission.mapper.SubmissionMapper$BucketCount">
+        SELECT DATE_FORMAT(create_time, '%Y-%m-%d') AS bucket, COUNT(*) AS cnt
+        FROM submission
+        WHERE is_delete = 0
+          AND create_time &gt;= #{start}
+          AND create_time &lt; #{end}
+        <if test="userId != null">
+          AND user_id = #{userId}
+        </if>
+        GROUP BY DATE_FORMAT(create_time, '%Y-%m-%d')
+        ORDER BY bucket ASC
+    </select>
+
+</mapper>

@@ -7,8 +7,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.xly.codeforge.common.common.ErrorCode;
 import com.xly.codeforge.common.constant.CommonConstant;
+import com.xly.codeforge.common.exception.BusinessAssert;
 import com.xly.codeforge.common.exception.BusinessException;
-import com.xly.codeforge.common.exception.ThrowUtils;
 import com.xly.codeforge.common.utils.SqlUtils;
 import com.xly.codeforge.model.dto.questionbankquestion.QuestionBankQuestionBulkRequest;
 import com.xly.codeforge.model.dto.questionbankquestion.QuestionBankQuestionQueryRequest;
@@ -19,18 +19,21 @@ import com.xly.codeforge.model.entity.User;
 import com.xly.codeforge.model.enums.QuestionBankQuestionActionEnum;
 import com.xly.codeforge.question.mapper.QuestionBankQuestionMapper;
 import com.xly.codeforge.question.mapper.QuestionMapper;
+import com.xly.codeforge.model.vo.QuestionVO;
 import com.xly.codeforge.question.service.QuestionBankQuestionService;
 import com.xly.codeforge.question.service.QuestionBankService;
+import com.xly.codeforge.question.service.QuestionService;
 import com.xly.codeforge.client.service.UserFeignClient;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -58,6 +61,9 @@ public class QuestionBankQuestionServiceImpl extends ServiceImpl<QuestionBankQue
     @Resource
     private UserFeignClient userFeignClient;
 
+    @Resource
+    private QuestionService questionService;
+
     @Override
     public void addQuestionToBank(long questionBankId, long questionId, User loginUser) {
         checkBankAuth(questionBankId, loginUser);
@@ -81,17 +87,17 @@ public class QuestionBankQuestionServiceImpl extends ServiceImpl<QuestionBankQue
     @Override
     @Transactional(rollbackFor = Exception.class)
     public int bulkOperateQuestion(QuestionBankQuestionBulkRequest bulkRequest, User loginUser) {
-        ThrowUtils.throwIf(bulkRequest == null, ErrorCode.PARAMS_ERROR);
+        BusinessAssert.notNull(bulkRequest, ErrorCode.PARAMS_ERROR);
         Long questionBankId = bulkRequest.getQuestionBankId();
         List<Long> questionIdList = bulkRequest.getQuestionIdList();
-        ThrowUtils.throwIf(ObjectUtils.isEmpty(questionBankId) || questionBankId <= 0, ErrorCode.PARAMS_ERROR);
-        ThrowUtils.throwIf(CollUtil.isEmpty(questionIdList), ErrorCode.PARAMS_ERROR, "题目列表不能为空");
-        ThrowUtils.throwIf(questionIdList.size() > MAX_QUESTION_BATCH, ErrorCode.PARAMS_ERROR,
+        BusinessAssert.positive(questionBankId, ErrorCode.INVALID_ID);
+        BusinessAssert.notEmpty(questionIdList, ErrorCode.PARAMS_ERROR, "题目列表不能为空");
+        BusinessAssert.isTrue(questionIdList.size() <= MAX_QUESTION_BATCH, ErrorCode.PARAMS_ERROR,
                 "单次最多操作 " + MAX_QUESTION_BATCH + " 道题目");
 
         // action 走枚举校验：前端拼错（add/plus）时明确报错，而不是静默无操作
         QuestionBankQuestionActionEnum action = QuestionBankQuestionActionEnum.getEnumByValue(bulkRequest.getAction());
-        ThrowUtils.throwIf(action == null, ErrorCode.PARAMS_ERROR,
+        BusinessAssert.notNull(action, ErrorCode.PARAMS_ERROR,
                 "action 取值非法，仅支持 ADD / REMOVE");
 
         checkBankAuth(questionBankId, loginUser);
@@ -99,7 +105,7 @@ public class QuestionBankQuestionServiceImpl extends ServiceImpl<QuestionBankQue
         // 去重：前端多选时可能重复提交同一个 id，重复会让批量插入踩唯一键
         List<Long> distinctIds = questionIdList.stream().distinct().collect(Collectors.toList());
 
-        if (QuestionBankQuestionActionEnum.ADD.equals(action)) {
+        if (QuestionBankQuestionActionEnum.ADD == action) {
             return addQuestionsSilently(questionBankId, distinctIds, loginUser.getId());
         }
         // REMOVE：一条 DELETE ... IN (...) 删完。
@@ -121,7 +127,7 @@ public class QuestionBankQuestionServiceImpl extends ServiceImpl<QuestionBankQue
                 .select(Question::getId)
                 .in(Question::getId, questionIdList));
         Set<Long> existIds = existQuestions.stream().map(Question::getId).collect(Collectors.toSet());
-        ThrowUtils.throwIf(existIds.isEmpty(), ErrorCode.PARAMS_ERROR, "所选题目均不存在");
+        BusinessAssert.notEmpty(existIds, ErrorCode.PARAMS_ERROR, "所选题目均不存在");
 
         // 已存在的关联先查出来剔除：直接插会撞唯一键 uk_bank_question 抛异常，
         // 而「重复添加」是用户的正常误操作，不该报 500。
@@ -176,7 +182,7 @@ public class QuestionBankQuestionServiceImpl extends ServiceImpl<QuestionBankQue
 
     @Override
     public Page<Long> pageQuestionIdsInBank(long questionBankId, long current, long pageSize) {
-        ThrowUtils.throwIf(questionBankId <= 0, ErrorCode.PARAMS_ERROR);
+        BusinessAssert.isTrue(questionBankId > 0, ErrorCode.PARAMS_ERROR);
         Page<QuestionBankQuestion> relationPage = this.page(new Page<>(current, pageSize),
                 new LambdaQueryWrapper<QuestionBankQuestion>()
                         .eq(QuestionBankQuestion::getQuestionBankId, questionBankId)
@@ -188,6 +194,34 @@ public class QuestionBankQuestionServiceImpl extends ServiceImpl<QuestionBankQue
         return idPage;
     }
 
+    @Override
+    public Page<QuestionVO> pageQuestionsInBank(long questionBankId, long current, long pageSize, User loginUser) {
+        BusinessAssert.isTrue(questionBankId > 0, ErrorCode.PARAMS_ERROR);
+        // 读权限走题单侧同一口径：私有题单对非本人/管理员按「不存在」处理
+        questionBankService.getQuestionBankById(questionBankId, loginUser);
+
+        Page<Long> idPage = pageQuestionIdsInBank(questionBankId, current, pageSize);
+        List<Long> questionIds = idPage.getRecords();
+        Page<QuestionVO> voPage = new Page<>(idPage.getCurrent(), idPage.getSize(), idPage.getTotal());
+        if (CollUtil.isEmpty(questionIds)) {
+            voPage.setRecords(List.of());
+            return voPage;
+        }
+
+        // 批量取回后必须按关联表的顺序还原：selectBatchIds 的返回顺序由 DB 决定，
+        // 与传入 id 的顺序无关，不还原会让翻页时题目次序跳动。
+        Map<Long, Question> questionMap = questionMapper.selectBatchIds(questionIds).stream()
+                .collect(Collectors.toMap(Question::getId, q -> q, (a, b) -> a));
+        List<Question> orderedQuestions = questionIds.stream()
+                .map(questionMap::get)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+
+        Page<Question> questionPage = new Page<>(idPage.getCurrent(), idPage.getSize(), idPage.getTotal());
+        questionPage.setRecords(orderedQuestions);
+        return questionService.getQuestionVOPage(questionPage, loginUser);
+    }
+
     /**
      * 校验当前用户对题单是否有编辑权（本人或管理员）
      *
@@ -195,9 +229,9 @@ public class QuestionBankQuestionServiceImpl extends ServiceImpl<QuestionBankQue
      * {@code QuestionBankService#getQuestionBankById} 的口径说明。</p>
      */
     private void checkBankAuth(long questionBankId, User loginUser) {
-        ThrowUtils.throwIf(loginUser == null || loginUser.getId() == null, ErrorCode.NOT_LOGIN_ERROR);
+        BusinessAssert.isTrue(loginUser != null && loginUser.getId() != null, ErrorCode.NOT_LOGIN_ERROR);
         QuestionBank questionBank = questionBankService.getById(questionBankId);
-        ThrowUtils.throwIf(questionBank == null, ErrorCode.NOT_FOUND_ERROR);
+        BusinessAssert.notNull(questionBank, ErrorCode.NOT_FOUND_ERROR);
         if (!loginUser.getId().equals(questionBank.getUserId()) && !userFeignClient.isAdmin(loginUser)) {
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR);
         }

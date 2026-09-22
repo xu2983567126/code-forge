@@ -8,8 +8,8 @@ import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.xly.codeforge.common.common.ErrorCode;
 import com.xly.codeforge.common.common.PageRequest;
 import com.xly.codeforge.common.constant.CommonConstant;
+import com.xly.codeforge.common.exception.BusinessAssert;
 import com.xly.codeforge.common.exception.BusinessException;
-import com.xly.codeforge.common.exception.ThrowUtils;
 import com.xly.codeforge.common.utils.SqlUtils;
 import com.xly.codeforge.model.dto.questionbank.QuestionBankQueryRequest;
 import com.xly.codeforge.model.entity.QuestionBank;
@@ -29,11 +29,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -108,7 +104,7 @@ public class QuestionBankServiceImpl extends ServiceImpl<QuestionBankMapper, Que
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         QuestionBank questionBank = this.getById(id);
-        ThrowUtils.throwIf(questionBank == null, ErrorCode.NOT_FOUND_ERROR);
+        BusinessAssert.notNull(questionBank, ErrorCode.NOT_FOUND_ERROR);
         // 私有题单：非本人、非管理员一律当作不存在
         checkReadAuth(questionBank, loginUser);
         return questionBank;
@@ -219,7 +215,7 @@ public class QuestionBankServiceImpl extends ServiceImpl<QuestionBankMapper, Que
 
     @Override
     public void checkBankEditAuth(QuestionBank questionBank, User loginUser) {
-        ThrowUtils.throwIf(questionBank == null, ErrorCode.NOT_FOUND_ERROR);
+        BusinessAssert.notNull(questionBank, ErrorCode.NOT_FOUND_ERROR);
         Long loginUserId = getLoginUserId(loginUser);
         // 未登录、非本人、非管理员 —— 统一 404
         if (loginUserId == null
@@ -231,7 +227,7 @@ public class QuestionBankServiceImpl extends ServiceImpl<QuestionBankMapper, Que
     @Override
     @Transactional(rollbackFor = Exception.class)
     public long forkQuestionBank(long sourceBankId, User loginUser) {
-        ThrowUtils.throwIf(loginUser == null || loginUser.getId() == null, ErrorCode.NOT_LOGIN_ERROR);
+        BusinessAssert.isTrue(loginUser != null && loginUser.getId() != null, ErrorCode.NOT_LOGIN_ERROR);
         // fork 源必须可见：私有题单 fork 不了（对无权限者它是「不存在」）
         QuestionBank source = getQuestionBankById(sourceBankId, loginUser);
 
@@ -245,7 +241,7 @@ public class QuestionBankServiceImpl extends ServiceImpl<QuestionBankMapper, Que
         fork.setSourceBankId(source.getId());
         fork.setForkNum(0);
         boolean saved = this.save(fork);
-        ThrowUtils.throwIf(!saved, ErrorCode.OPERATION_ERROR);
+        BusinessAssert.isTrue(saved, ErrorCode.OPERATION_ERROR);
 
         // 复制题目组成
         List<QuestionBankQuestion> sourceRelations = questionBankQuestionMapper.selectList(
@@ -331,11 +327,10 @@ public class QuestionBankServiceImpl extends ServiceImpl<QuestionBankMapper, Que
             return;
         }
         Long loginUserId = getLoginUserId(loginUser);
-        if (loginUserId == null || !loginUserId.equals(questionBank.getUserId())) {
-            // 管理员可看任意私有题单
-            ThrowUtils.throwIf(loginUser == null || !userFeignClient.isAdmin(loginUser), ErrorCode.NOT_FOUND_ERROR);
-            return;
-        }
+        BusinessAssert.isTrue(
+            Objects.equals(loginUserId, questionBank.getUserId())
+            || userFeignClient.isAdmin(loginUser),
+            ErrorCode.NO_AUTH_ERROR);
     }
 
     /**

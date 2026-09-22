@@ -137,8 +137,8 @@ ALTER TABLE `question_favourite`
 ALTER TABLE `question_favourite` RENAME INDEX `idx_userId` TO `idx_user_id`;
 
 
--- ---------- question_submit（6 列） ----------
-ALTER TABLE `question_submit`
+-- ---------- submission（6 列） ----------
+ALTER TABLE `submission`
   CHANGE COLUMN `judgeInfo` `judge_info` text NULL DEFAULT NULL COMMENT '判题信息（json 对象）',
   CHANGE COLUMN `questionId` `question_id` bigint NOT NULL COMMENT '题目 id',
   CHANGE COLUMN `userId` `user_id` bigint NOT NULL COMMENT '创建用户 id',
@@ -146,8 +146,8 @@ ALTER TABLE `question_submit`
   CHANGE COLUMN `updateTime` `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   CHANGE COLUMN `isDelete` `is_delete` tinyint NOT NULL DEFAULT 0 COMMENT '是否删除';
 
-ALTER TABLE `question_submit` RENAME INDEX `idx_questionId` TO `idx_question_id`;
-ALTER TABLE `question_submit` RENAME INDEX `idx_userId` TO `idx_user_id`;
+ALTER TABLE `submission` RENAME INDEX `idx_questionId` TO `idx_question_id`;
+ALTER TABLE `submission` RENAME INDEX `idx_userId` TO `idx_user_id`;
 
 
 -- ---------- user（7 列） ----------

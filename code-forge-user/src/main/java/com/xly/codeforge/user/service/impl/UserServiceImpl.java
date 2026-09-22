@@ -8,8 +8,8 @@ import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.xly.codeforge.common.common.ErrorCode;
 import com.xly.codeforge.common.constant.CommonConstant;
 import com.xly.codeforge.common.constant.UserConstant;
+import com.xly.codeforge.common.exception.BusinessAssert;
 import com.xly.codeforge.common.exception.BusinessException;
-import com.xly.codeforge.common.exception.ThrowUtils;
 import com.xly.codeforge.common.utils.SqlUtils;
 import com.xly.codeforge.model.dto.SubmissionStatsItemDTO;
 import com.xly.codeforge.model.dto.user.UserQueryRequest;
@@ -40,8 +40,6 @@ import java.util.stream.Collectors;
 /**
  * 用户服务实现
  *
- * @author <a href="https://github.com/liyupi">程序员鱼皮</a>
- * @from <a href="https://yupi.icu">编程导航知识星球</a>
  */
 @Service
 @Slf4j
@@ -267,7 +265,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     @Override
     public Page<UserWithStatsVO> pageUserWithStats(UserQueryRequest userQueryRequest) {
-        ThrowUtils.throwIf(userQueryRequest == null, ErrorCode.PARAMS_ERROR);
+        BusinessAssert.notNull(userQueryRequest, ErrorCode.PARAMS_ERROR);
         long current = userQueryRequest.getCurrent();
         long size = userQueryRequest.getPageSize();
 
@@ -315,15 +313,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     @Override
     public boolean banUser(long id) {
-        ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
+        BusinessAssert.isTrue(id > 0, ErrorCode.INVALID_ID);
         User oldUser = this.getById(id);
-        ThrowUtils.throwIf(oldUser == null, ErrorCode.NOT_FOUND_ERROR, "用户不存在");
+        BusinessAssert.notNull(oldUser, ErrorCode.NOT_FOUND_ERROR, "用户不存在");
         // 幂等：已经是 ban 就直接返回成功，不报错也不重复写库
         if (UserConstant.BAN_ROLE.equals(oldUser.getRole())) {
             return true;
         }
         // 不允许封禁管理员：否则一个管理员手滑能把整个平台锁死
-        ThrowUtils.throwIf(UserConstant.ADMIN_ROLE.equals(oldUser.getRole()),
+        BusinessAssert.isTrue(RoleEnum.ADMIN != RoleEnum.getEnumByValue(oldUser.getRole()),
                 ErrorCode.FORBIDDEN_ERROR, "不能封禁管理员");
         User update = new User();
         update.setId(id);
@@ -333,38 +331,34 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     @Override
     public boolean unbanUser(long id) {
-        ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
+        BusinessAssert.isTrue(id > 0, ErrorCode.PARAMS_ERROR);
         User oldUser = this.getById(id);
-        ThrowUtils.throwIf(oldUser == null, ErrorCode.NOT_FOUND_ERROR, "用户不存在");
-        if (!UserConstant.BAN_ROLE.equals(oldUser.getRole())) {
+        BusinessAssert.notNull(oldUser, ErrorCode.NOT_FOUND_ERROR, "用户不存在");
+        if (RoleEnum.BAN != RoleEnum.getEnumByValue(oldUser.getRole())) {
             return true;
         }
         User update = new User();
         update.setId(id);
-        // 用 UserConstant.DEFAULT_ROLE 而不是 RoleEnum.USER.getValue()：
-        // 上面 banUser 用的是 UserConstant.BAN_ROLE，同一对逻辑该用同一套常量，
-        // 否则读代码的人要跳两个文件才能确认它们指的是同一套角色值。
-        update.setRole(UserConstant.DEFAULT_ROLE);
+        update.setRole(RoleEnum.USER.getValue());
         return this.updateById(update);
     }
 
     @Override
     public int batchDeleteUser(List<Long> idList) {
-        if (CollUtil.isEmpty(idList)) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "待删除的用户列表为空");
-        }
+        BusinessAssert.notEmpty(idList, ErrorCode.PARAMS_ERROR, "待删除的用户列表为空");
+
         List<Long> distinctIds = idList.stream()
                 .filter(id -> id != null && id > 0)
                 .distinct()
                 .collect(Collectors.toList());
-        ThrowUtils.throwIf(distinctIds.isEmpty(), ErrorCode.PARAMS_ERROR, "无有效的用户 id");
-        ThrowUtils.throwIf(distinctIds.size() > MAX_DELETE_BATCH, ErrorCode.PARAMS_ERROR,
+        BusinessAssert.notEmpty(distinctIds, ErrorCode.PARAMS_ERROR, "无有效的用户 id");
+        BusinessAssert.isTrue(distinctIds.size() <= MAX_DELETE_BATCH, ErrorCode.PARAMS_ERROR,
                 "单次最多删除 " + MAX_DELETE_BATCH + " 个用户");
 
         // removeByIds 走的是逻辑删除（User.isDelete 有 @TableLogic），
         // 用户的提交记录、题目都还引用着这个 id，物理删除会让历史数据变成孤儿。
         boolean result = this.removeByIds(distinctIds);
-        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+        BusinessAssert.isTrue(result, ErrorCode.OPERATION_ERROR);
         return distinctIds.size();
     }
 

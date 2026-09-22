@@ -1,17 +1,17 @@
 package com.xly.codeforge.model.enums;
 
+import lombok.Getter;
 import org.apache.commons.lang3.ObjectUtils;
 
 import java.util.Arrays;
-import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
  * 用户角色枚举
  *
- * @author <a href="https://github.com/liyupi">程序员鱼皮</a>
- * @from <a href="https://yupi.icu">编程导航知识星球</a>
  */
+@Getter
 public enum RoleEnum {
 
     USER("用户", "user"),
@@ -27,38 +27,22 @@ public enum RoleEnum {
         this.value = value;
     }
 
-    /**
-     * 获取值列表
-     *
-     * @return
-     */
-    public static List<String> getValues() {
-        return Arrays.stream(values()).map(item -> item.value).collect(Collectors.toList());
-    }
+    private static final Map<String, RoleEnum> VALUE_MAP =
+        Arrays.stream(values())
+            .collect(Collectors.toUnmodifiableMap(
+                e -> e.value,
+                e -> e,
+                (a, _) -> {
+                    throw new IllegalStateException("重复的 value: " + a.value);
+                }));
 
     /**
      * 根据 value 获取枚举
-     *
-     * @param value
-     * @return
      */
     public static RoleEnum getEnumByValue(String value) {
         if (ObjectUtils.isEmpty(value)) {
             return null;
         }
-        for (RoleEnum anEnum : RoleEnum.values()) {
-            if (anEnum.value.equals(value)) {
-                return anEnum;
-            }
-        }
-        return null;
-    }
-
-    public String getValue() {
-        return value;
-    }
-
-    public String getText() {
-        return text;
+        return VALUE_MAP.get(value);
     }
 }

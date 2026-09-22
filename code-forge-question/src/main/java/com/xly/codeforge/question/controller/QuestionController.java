@@ -5,10 +5,12 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.xly.codeforge.common.annotation.AuthCheck;
 import com.xly.codeforge.common.common.*;
 import com.xly.codeforge.common.constant.UserConstant;
+import com.xly.codeforge.common.exception.BusinessAssert;
 import com.xly.codeforge.common.exception.BusinessException;
-import com.xly.codeforge.common.exception.ThrowUtils;
+import com.xly.codeforge.common.utils.ResultUtils;
 import com.xly.codeforge.model.dto.question.*;
 import com.xly.codeforge.model.entity.Question;
+import com.xly.codeforge.model.judge.CodeTemplateGenerator;
 import com.xly.codeforge.model.entity.User;
 import com.xly.codeforge.model.vo.QuestionAdjacentVO;
 import com.xly.codeforge.model.vo.QuestionVO;
@@ -29,8 +31,6 @@ import java.util.List;
  * （如 {@code /question/manage/list/page}），为将来抽独立管理服务预留迁移缝 ——
  * 届时网关把 {@code /api/*&#47;manage/**} 整体路由过去，前端 URL 不变、零改动。</p>
  *
- * @author <a href="https://github.com/liyupi">程序员鱼皮</a>
- * @from <a href="https://yupi.icu">编程导航知识星球</a>
  */
 @RestController
 @RequestMapping("/")
@@ -53,10 +53,8 @@ public class QuestionController {
      * @return
      */
     @PostMapping("/create")
-    public BaseResponse<Long> createQuestion(@RequestBody QuestionCreateRequest questionCreateRequest, HttpServletRequest request) {
-        if (questionCreateRequest == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+    public Result<Long> createQuestion(@RequestBody QuestionCreateRequest questionCreateRequest, HttpServletRequest request) {
+        BusinessAssert.notNull(questionCreateRequest, ErrorCode.EMPTY_REQUEST_ERROR);
         Question question = toQuestion(questionCreateRequest);
         questionService.validQuestion(question, true);
         long newQuestionId = initQuestion(question, request);
@@ -75,13 +73,13 @@ public class QuestionController {
      * @return 是否删除成功
      */
     @DeleteMapping("/{id}")
-    public BaseResponse<Boolean> deleteQuestion(@PathVariable("id") long id, HttpServletRequest request) {
+    public Result<Boolean> deleteQuestion(@PathVariable("id") long id, HttpServletRequest request) {
         if (id <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         // 判断是否存在（逻辑删除的题目不会被查到）
         Question oldQuestion = questionService.getById(id);
-        ThrowUtils.throwIf(oldQuestion == null, ErrorCode.NOT_FOUND_ERROR);
+        BusinessAssert.notNull(oldQuestion, ErrorCode.NOT_FOUND_ERROR);
         // 仅本人或管理员可操作
         checkQuestionAuth(oldQuestion, request);
         boolean b = questionService.removeById(id);
@@ -102,9 +100,9 @@ public class QuestionController {
      * @param questionUpdateRequest 只带需要改的字段（PATCH 语义：null 字段不会被覆盖）
      */
     @PatchMapping("/{id}")
-    public BaseResponse<Boolean> updateQuestion(@PathVariable("id") long id,
-                                                @RequestBody QuestionUpdateRequest questionUpdateRequest,
-                                                HttpServletRequest request) {
+    public Result<Boolean> updateQuestion(@PathVariable("id") long id,
+                                          @RequestBody QuestionUpdateRequest questionUpdateRequest,
+                                          HttpServletRequest request) {
         if (questionUpdateRequest == null || id <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -114,7 +112,7 @@ public class QuestionController {
         questionService.validQuestion(question, false);
         // 判断是否存在
         Question oldQuestion = questionService.getById(id);
-        ThrowUtils.throwIf(oldQuestion == null, ErrorCode.NOT_FOUND_ERROR);
+        BusinessAssert.notNull(oldQuestion, ErrorCode.NOT_FOUND_ERROR);
         checkQuestionAuth(oldQuestion, request);
         boolean result = questionService.updateById(question);
         return ResultUtils.success(result);
@@ -130,7 +128,7 @@ public class QuestionController {
      * @return 题目视图对象
      */
     @GetMapping("/{id}/vo")
-    public BaseResponse<QuestionVO> getQuestionVOById(@PathVariable("id") long id, HttpServletRequest request) {
+    public Result<QuestionVO> getQuestionVOById(@PathVariable("id") long id, HttpServletRequest request) {
         User loginUser = userFeignClient.getLoginUser(request);
         return ResultUtils.success(questionService.getQuestionVOById(id, loginUser));
     }
@@ -143,7 +141,7 @@ public class QuestionController {
      * @return 随机题目；题库为空或排除后无题时 data 为 null
      */
     @GetMapping("/random")
-    public BaseResponse<QuestionVO> getRandomQuestion(Long notId, HttpServletRequest request) {
+    public Result<QuestionVO> getRandomQuestion(Long notId, HttpServletRequest request) {
         User loginUser = userFeignClient.getLoginUser(request);
         return ResultUtils.success(questionService.getRandomQuestionVO(notId, loginUser));
     }
@@ -155,8 +153,8 @@ public class QuestionController {
      * @return prev / next，首末题对应方向为 null
      */
     @GetMapping("/adjacent")
-    public BaseResponse<QuestionAdjacentVO> getAdjacentQuestion(long id, HttpServletRequest request) {
-        ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
+    public Result<QuestionAdjacentVO> getAdjacentQuestion(long id, HttpServletRequest request) {
+        BusinessAssert.isTrue(id > 0, ErrorCode.PARAMS_ERROR);
         User loginUser = userFeignClient.getLoginUser(request);
         return ResultUtils.success(questionService.getAdjacentQuestion(id, loginUser));
     }
@@ -169,12 +167,12 @@ public class QuestionController {
      * @return
      */
     @PostMapping("/list/page/vo")
-    public BaseResponse<Page<QuestionVO>> listQuestionVOByPage(@RequestBody QuestionQueryRequest questionQueryRequest,
-                                                               HttpServletRequest request) {
+    public Result<Page<QuestionVO>> listQuestionVOByPage(@RequestBody QuestionQueryRequest questionQueryRequest,
+                                                         HttpServletRequest request) {
         long current = questionQueryRequest.getCurrent();
         long size = questionQueryRequest.getPageSize();
         // 限制爬虫
-        ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
+        BusinessAssert.isTrue(size <= 20, ErrorCode.PARAMS_ERROR);
         Page<Question> questionPage = questionService.page(new Page<>(current, size),
                 questionService.getQueryWrapper(questionQueryRequest));
         User loginUser = userFeignClient.getLoginUser(request);
@@ -189,8 +187,8 @@ public class QuestionController {
      * @return
      */
     @PostMapping("/my/list/page/vo")
-    public BaseResponse<Page<QuestionVO>> listMyQuestionVOByPage(@RequestBody QuestionQueryRequest questionQueryRequest,
-                                                                 HttpServletRequest request) {
+    public Result<Page<QuestionVO>> listMyQuestionVOByPage(@RequestBody QuestionQueryRequest questionQueryRequest,
+                                                           HttpServletRequest request) {
         if (questionQueryRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -199,7 +197,7 @@ public class QuestionController {
         long current = questionQueryRequest.getCurrent();
         long size = questionQueryRequest.getPageSize();
         // 限制爬虫
-        ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
+        BusinessAssert.isTrue(size <= 20, ErrorCode.PARAMS_ERROR);
         Page<Question> questionPage = questionService.page(new Page<>(current, size),
                 questionService.getQueryWrapper(questionQueryRequest));
         return ResultUtils.success(questionService.getQuestionVOPage(questionPage, loginUser));
@@ -216,11 +214,11 @@ public class QuestionController {
     //  * @return
     //  */
     // @PostMapping("/search/page/vo")
-    // public BaseResponse<Page<QuestionVO>> searchQuestionVOByPage(@RequestBody QuestionQueryRequest questionQueryRequest,
+    // public Result<Page<QuestionVO>> searchQuestionVOByPage(@RequestBody QuestionQueryRequest questionQueryRequest,
     //         HttpServletRequest request) {
     //     long size = questionQueryRequest.getPageSize();
     //     // 限制爬虫
-    //     ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
+    //     BusinessAssert.isTrue(size > 20, ErrorCode.PARAMS_ERROR);
     //     Page<Question> questionPage = questionService.searchFromEs(questionQueryRequest);
     //     return ResultUtils.success(questionService.getQuestionVOPage(questionPage, request));
     // }
@@ -232,12 +230,15 @@ public class QuestionController {
      */
     @PostMapping("/manage/list/page")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Page<Question>> listQuestionByPage(@RequestBody QuestionQueryRequest questionQueryRequest,
-                                                                  HttpServletRequest request) {
+    public Result<Page<Question>> listQuestionByPage(@RequestBody QuestionQueryRequest questionQueryRequest,
+                                                     HttpServletRequest request) {
         long current = questionQueryRequest.getCurrent();
         long size = questionQueryRequest.getPageSize();
         Page<Question> questionPage = questionService.page(new Page<>(current, size),
                 questionService.getQueryWrapper(questionQueryRequest));
+        // 通过率取提交域的实时统计（submit_num/accepted_num 两列已废弃、恒 0）。
+        // 填的是实体对象在本次响应里的值，不会写库。
+        questionService.fillStatsForEntities(questionPage.getRecords());
         // 管理员权限已由 @AuthCheck 切面保证，此处无需再取登录用户
         return ResultUtils.success(questionPage);
     }
@@ -257,6 +258,16 @@ public class QuestionController {
         if (judgeConfig != null) {
             question.setJudgeConfig(JSONUtil.toJsonStr(judgeConfig));
         }
+        // 核心代码模式：codeTemplate 是 Solution 骨架时，driver 运行时由 CodeTemplateGenerator 派生，不落库。
+        // 保存时仅做合法性预校验：骨架像 Solution 但类型不支持 / void 等直接拒存，避免提交后判题才报错。
+        String codeTemplate = question.getCodeTemplate();
+        if (codeTemplate != null && !codeTemplate.isBlank()) {
+            try {
+                CodeTemplateGenerator.deriveDriverCode(codeTemplate);
+            } catch (IllegalArgumentException e) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "题目 Solution 模板不合法：" + e.getMessage());
+            }
+        }
         return question;
     }
 
@@ -266,7 +277,7 @@ public class QuestionController {
         question.setFavourNum(0);
         question.setThumbNum(0);
         boolean result = questionService.save(question);
-        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+        BusinessAssert.isTrue(result, ErrorCode.OPERATION_ERROR);
         return question.getId();
     }
 

@@ -1,9 +1,6 @@
 package com.xly.codeforge.model.vo;
 
 import cn.hutool.json.JSONUtil;
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
 import com.xly.codeforge.model.dto.submission.JudgeInfo;
 import com.xly.codeforge.model.entity.Submission;
 import lombok.Data;
@@ -14,18 +11,17 @@ import java.io.Serializable;
 import java.util.Date;
 
 /**
- * 题目
+ * 题目提交（视图对象）
  *
- * @TableName question
+ * <p>这是 VO 不是实体：不带任何 MyBatis-Plus 注解。{@code judgeInfo} 由库里的 JSON 文本解析成
+ * 对象，{@code verdict} / {@code status} 直接来自提交行。</p>
  */
-@TableName(value = "question")
 @Data
 public class SubmissionVO implements Serializable {
 
     /**
      * id
      */
-    @TableId(type = IdType.ASSIGN_ID)
     private Long id;
 
     /**
@@ -122,7 +118,9 @@ public class SubmissionVO implements Serializable {
         SubmissionVO submissionVO = new SubmissionVO();
         BeanUtils.copyProperties(submission, submissionVO);
         String judgeInfoStr = submission.getJudgeInfo();
-        submissionVO.setJudgeInfo(JSONUtil.toBean(judgeInfoStr, JudgeInfo.class));
+        // JSONUtil.toBean(null) 会返回全空对象而不是 null —— 待判题记录必须保持 null，
+        // 与 javadoc「老数据 / 未判题记录为 null，前端需判空」的契约一致
+        submissionVO.setJudgeInfo(judgeInfoStr == null ? null : JSONUtil.toBean(judgeInfoStr, JudgeInfo.class));
         return submissionVO;
     }
 }

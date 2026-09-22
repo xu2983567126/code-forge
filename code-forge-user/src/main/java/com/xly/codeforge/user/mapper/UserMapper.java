@@ -11,8 +11,6 @@ import java.util.List;
 /**
  * 用户数据库操作
  *
- * @author <a href="https://github.com/liyupi">程序员鱼皮</a>
- * @from <a href="https://yupi.icu">编程导航知识星球</a>
  */
 public interface UserMapper extends BaseMapper<User> {
 
@@ -23,18 +21,6 @@ public interface UserMapper extends BaseMapper<User> {
      * @param role         指定角色；传 null 表示不限
      * @return 用户数
      */
-    @Select("""
-            <script>
-            SELECT COUNT(*) FROM user
-            WHERE is_delete = 0
-            <if test="todayStart != null">
-              AND create_time &gt;= #{todayStart}
-            </if>
-            <if test="role != null">
-              AND role = #{role}
-            </if>
-            </script>
-            """)
     Long countUsers(@Param("todayStart") LocalDateTime todayStart, @Param("role") String role);
 
     /**
@@ -77,7 +63,3 @@ public interface UserMapper extends BaseMapper<User> {
     record BucketCount(String bucket, Long cnt) {
     }
 }
-
-
-
-

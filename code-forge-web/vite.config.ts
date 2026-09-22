@@ -23,7 +23,19 @@ export default defineConfig({
     // 走代理 = 浏览器视角同源 → cookie 自动携带，不受 SameSite / CORS 约束。
     // ⚠️ 别把 VITE_API_BASE_URL 改回绝对地址，那样会绕开代理变成跨源请求。
     proxy: {
-      '/api': { target: 'http://127.0.0.1:8101', changeOrigin: true }
+      '/api': {
+        target: 'http://127.0.0.1:8101',
+        changeOrigin: true,
+        // 网关 CorsConfig 的白名单固定 5173：dev server 换端口（5174…）时浏览器仍会带
+        // `Origin: http://localhost:<port>`，经代理转给网关会被挡成 403 —— 且登录接口同样
+        // 被挡，cookie 种不上，表现为整站"有骨架没数据"。经代理本就是同源语义，Origin
+        // 是浏览器的多余附带，删掉后网关按非 CORS 请求放行，换任何端口都不受白名单约束。
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.removeHeader('origin')
+          })
+        }
+      }
     }
   },
   optimizeDeps: {

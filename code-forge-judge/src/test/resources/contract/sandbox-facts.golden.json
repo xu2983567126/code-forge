@@ -1,0 +1,243 @@
+{
+  "note": "沙箱事实→判题结论的契约样例。sandbox 节点是沙箱 /executeCode 响应的原文形态，由 JSONUtil.toBean 反序列化后进 VerdictResolver，因此同时锁住「线上字段名」与「归约规则」两层。改沙箱输出字段或改判定顺序时，先改本文件。",
+  "wireFields": {
+    "ExecuteCodeResponse": ["message", "caseResults", "compileError", "systemError"],
+    "SandboxCaseResult": ["exitCode", "timedOut", "output", "errorOutput", "timeMs", "memoryKb", "truncated"]
+  },
+  "scenarios": [
+    {
+      "name": "全部用例通过 → ACCEPTED，耗时与内存取逐用例峰值",
+      "judgeConfig": { "timeLimit": 1000, "memoryLimit": 102400, "compareMode": "STANDARD" },
+      "cases": [
+        { "index": 0, "input": "[1]", "expectedOutput": "1" },
+        { "index": 1, "input": "[10]", "expectedOutput": "55" }
+      ],
+      "sandbox": {
+        "caseResults": [
+          { "exitCode": 0, "timedOut": false, "output": "1\n", "errorOutput": "", "timeMs": 23, "memoryKb": 61000, "truncated": false },
+          { "exitCode": 0, "timedOut": false, "output": "55\n", "errorOutput": "", "timeMs": 23, "memoryKb": 61000, "truncated": false }
+        ],
+        "compileError": null,
+        "systemError": null
+      },
+      "expectedVerdict": "ACCEPTED",
+      "expectedCaseVerdicts": ["ACCEPTED", "ACCEPTED"],
+      "expectedTime": 23,
+      "expectedMemory": 61000,
+      "note": "耗时与内存均取逐用例峰值（不再求和），内存取最大（各用例上报的是堆峰值，求和无物理意义且会随用例数线性放大）。"
+    },
+    {
+      "name": "部分用例缺内存自报 → 不参与取峰值，也不误判内存超限",
+      "note": "被 SIGKILL（超时/OOM）的用例驱动来不及落盘，沙箱整条 MEM 行不发；判题侧必须把它当「未知」而不是 0。",
+      "judgeConfig": { "timeLimit": 5000, "memoryLimit": 102400, "compareMode": "STANDARD" },
+      "cases": [
+        { "index": 0, "input": "[1]", "expectedOutput": "1" },
+        { "index": 1, "input": "[10]", "expectedOutput": "55" }
+      ],
+      "sandbox": {
+        "caseResults": [
+          { "exitCode": 0, "timedOut": false, "output": "1\n", "errorOutput": "", "timeMs": 23, "memoryKb": 61000, "truncated": false },
+          { "exitCode": 0, "timedOut": false, "output": "55\n", "errorOutput": "", "timeMs": 24 }
+        ],
+        "compileError": null,
+        "systemError": null
+      },
+      "expectedVerdict": "ACCEPTED",
+      "expectedCaseVerdicts": ["ACCEPTED", "ACCEPTED"],
+      "expectedTime": 24,
+      "expectedMemory": 61000
+    },
+    {
+      "name": "第二个用例输出不符 → WRONG_ANSWER，逐用例明细保留到出错那条",
+      "judgeConfig": { "timeLimit": 1000, "memoryLimit": 102400, "compareMode": "STANDARD" },
+      "cases": [
+        { "index": 0, "input": "[1]", "expectedOutput": "1" },
+        { "index": 1, "input": "[10]", "expectedOutput": "55" }
+      ],
+      "sandbox": {
+        "caseResults": [
+          { "exitCode": 0, "timedOut": false, "output": "1\n", "errorOutput": "", "timeMs": 23, "memoryKb": 61000, "truncated": false },
+          { "exitCode": 0, "timedOut": false, "output": "56\n", "errorOutput": "", "timeMs": 24, "memoryKb": 61000, "truncated": false }
+        ],
+        "compileError": null,
+        "systemError": null
+      },
+      "expectedVerdict": "WRONG_ANSWER",
+      "expectedCaseVerdicts": ["ACCEPTED", "WRONG_ANSWER"]
+    },
+    {
+      "name": "沙箱超时（SIGXCPU 已归一为 timedOut=true、exitCode=-1）→ Time Limit Exceeded",
+      "note": "沙箱把容器内 CPU 时间到软限的 152 归一成 timedOut=true + exitCode=-1，判题侧只认 timedOut 标志，不解读 152/137 这类原始信号码。",
+      "judgeConfig": { "timeLimit": 1000, "memoryLimit": 102400, "compareMode": "STANDARD" },
+      "cases": [{ "index": 0, "input": "[40]", "expectedOutput": "102334155" }],
+      "sandbox": {
+        "caseResults": [
+          { "exitCode": -1, "timedOut": true, "output": "", "errorOutput": "", "timeMs": 2035, "memoryKb": 59000, "truncated": false }
+        ],
+        "compileError": null,
+        "systemError": null
+      },
+      "expectedVerdict": "TIME_LIMIT_EXCEEDED",
+      "expectedCaseVerdicts": ["TIME_LIMIT_EXCEEDED"]
+    },
+    {
+      "name": "沙箱漏设 timedOut 标志 → 仍由耗时超限闸拦下判 Time Limit Exceeded",
+      "note": "双保险：timedOut 是事实标志，题目 timeLimit 是第二道闸。任一条通道失效，超时都不会退化成「答案错误」。",
+      "judgeConfig": { "timeLimit": 1000, "memoryLimit": 102400, "compareMode": "STANDARD" },
+      "cases": [{ "index": 0, "input": "[40]", "expectedOutput": "102334155" }],
+      "sandbox": {
+        "caseResults": [
+          { "exitCode": 152, "timedOut": false, "output": "", "errorOutput": "CPU time limit exceeded", "timeMs": 2035, "memoryKb": 59000, "truncated": false }
+        ],
+        "compileError": null,
+        "systemError": null
+      },
+      "expectedVerdict": "TIME_LIMIT_EXCEEDED",
+      "expectedCaseVerdicts": ["TIME_LIMIT_EXCEEDED"]
+    },
+    {
+      "name": "退出码非 0 → Runtime Error，stderr 透出到用例 errorMessage",
+      "judgeConfig": { "timeLimit": 1000, "memoryLimit": 102400, "compareMode": "STANDARD" },
+      "cases": [{ "index": 0, "input": "[1]", "expectedOutput": "1" }],
+      "sandbox": {
+        "caseResults": [
+          {
+            "exitCode": 1,
+            "timedOut": false,
+            "output": "",
+            "errorOutput": "Exception in thread \"main\" java.lang.NullPointerException: Cannot invoke \"java.lang.Integer.intValue()\" because \"o\" is null\n\tat Main.toInt(Main.java:186)\n\tat Main.main(Main.java:31)",
+            "timeMs": 35,
+            "memoryKb": 61000,
+            "truncated": false
+          }
+        ],
+        "compileError": null,
+        "systemError": null
+      },
+      "expectedVerdict": "RUNTIME_ERROR",
+      "expectedCaseVerdicts": ["RUNTIME_ERROR"],
+      "expectedErrorMessageContains": "NullPointerException"
+    },
+    {
+      "name": "编译错误 → Compile Error，不能因事实数为 0 而误判 System Error",
+      "note": "锁住判定顺序：编译失败时沙箱不回任何用例事实，若先判「用例数与事实数不符」就会退化成系统错误。",
+      "judgeConfig": { "timeLimit": 1000, "memoryLimit": 102400, "compareMode": "STANDARD" },
+      "cases": [
+        { "index": 0, "input": "[1]", "expectedOutput": "1" },
+        { "index": 1, "input": "[10]", "expectedOutput": "55" }
+      ],
+      "sandbox": {
+        "caseResults": [],
+        "compileError": true,
+        "systemError": null
+      },
+      "expectedVerdict": "COMPILE_ERROR",
+      "expectedCaseVerdicts": []
+    },
+    {
+      "name": "系统错误与编译错误同现 → System Error 优先",
+      "note": "锁住优先级：沙箱链路自身故障时不该把锅算到用户代码的编译上。",
+      "judgeConfig": { "timeLimit": 1000, "memoryLimit": 102400, "compareMode": "STANDARD" },
+      "cases": [
+        { "index": 0, "input": "[1]", "expectedOutput": "1" },
+        { "index": 1, "input": "[10]", "expectedOutput": "55" }
+      ],
+      "sandbox": {
+        "caseResults": [],
+        "compileError": true,
+        "systemError": true
+      },
+      "expectedVerdict": "SYSTEM_ERROR",
+      "expectedCaseVerdicts": []
+    },
+    {
+      "name": "回传事实数少于用例数 → System Error（链路残缺不算用户错）",
+      "judgeConfig": { "timeLimit": 1000, "memoryLimit": 102400, "compareMode": "STANDARD" },
+      "cases": [
+        { "index": 0, "input": "[1]", "expectedOutput": "1" },
+        { "index": 1, "input": "[10]", "expectedOutput": "55" }
+      ],
+      "sandbox": {
+        "caseResults": [
+          { "exitCode": 0, "timedOut": false, "output": "1\n", "errorOutput": "", "timeMs": 23, "memoryKb": 61000, "truncated": false }
+        ],
+        "compileError": null,
+        "systemError": null
+      },
+      "expectedVerdict": "SYSTEM_ERROR",
+      "expectedCaseVerdicts": []
+    },
+    {
+      "name": "输出被截断 → 内容不完整不可信，即使恰好等于期望也判 WRONG_ANSWER",
+      "note": "截断意味着只收到前 1MiB，无法证明后半段正确；判 ACCEPTED 会放过输出噪声题。",
+      "judgeConfig": { "timeLimit": 1000, "memoryLimit": 102400, "compareMode": "STANDARD" },
+      "cases": [{ "index": 0, "input": "[1]", "expectedOutput": "1000000" }],
+      "sandbox": {
+        "caseResults": [
+          { "exitCode": 0, "timedOut": false, "output": "1000000\n", "errorOutput": "", "timeMs": 41, "memoryKb": 62000, "truncated": true }
+        ],
+        "compileError": null,
+        "systemError": null
+      },
+      "expectedVerdict": "WRONG_ANSWER",
+      "expectedCaseVerdicts": ["WRONG_ANSWER"]
+    },
+    {
+      "name": "内存超限 → Memory Limit Exceeded（退出码为 0，只能靠 memoryKb 判）",
+      "judgeConfig": { "timeLimit": 1000, "memoryLimit": 102400, "compareMode": "STANDARD" },
+      "cases": [{ "index": 0, "input": "[1]", "expectedOutput": "1" }],
+      "sandbox": {
+        "caseResults": [
+          { "exitCode": 0, "timedOut": false, "output": "1\n", "errorOutput": "", "timeMs": 120, "memoryKb": 131072, "truncated": false }
+        ],
+        "compileError": null,
+        "systemError": null
+      },
+      "expectedVerdict": "MEMORY_LIMIT_EXCEEDED",
+      "expectedCaseVerdicts": ["MEMORY_LIMIT_EXCEEDED"]
+    },
+    {
+      "name": "可选字段缺失 → 不抛异常，缺的按 0 计且不误判内存超限",
+      "note": "老沙箱或采集失败时 timedOut/timeMs/memoryKb/truncated 可能整体缺失，必须容错。",
+      "judgeConfig": { "timeLimit": 1000, "memoryLimit": 102400, "compareMode": "STANDARD" },
+      "cases": [{ "index": 0, "input": "[1]", "expectedOutput": "1" }],
+      "sandbox": {
+        "caseResults": [{ "exitCode": 0, "output": "1\n" }],
+        "compileError": null,
+        "systemError": null
+      },
+      "expectedVerdict": "ACCEPTED",
+      "expectedCaseVerdicts": ["ACCEPTED"],
+      "expectedTime": 0,
+      "expectedMemory": 0
+    },
+    {
+      "name": "compareMode=SPJ 但题目未配特判程序 → 回落标准比对",
+      "judgeConfig": { "timeLimit": 1000, "memoryLimit": 102400, "compareMode": "SPJ" },
+      "cases": [{ "index": 0, "input": "[1]", "expectedOutput": "1" }],
+      "sandbox": {
+        "caseResults": [
+          { "exitCode": 0, "timedOut": false, "output": "1\n", "errorOutput": "", "timeMs": 23, "memoryKb": 61000, "truncated": false }
+        ],
+        "compileError": null,
+        "systemError": null
+      },
+      "expectedVerdict": "ACCEPTED",
+      "expectedCaseVerdicts": ["ACCEPTED"]
+    },
+    {
+      "name": "仅内部空白差异 → Presentation Error（标准比对口径）",
+      "judgeConfig": { "timeLimit": 1000, "memoryLimit": 102400, "compareMode": "STANDARD" },
+      "cases": [{ "index": 0, "input": "[[1,2]]", "expectedOutput": "1 2" }],
+      "sandbox": {
+        "caseResults": [
+          { "exitCode": 0, "timedOut": false, "output": "1  2\n", "errorOutput": "", "timeMs": 23, "memoryKb": 61000, "truncated": false }
+        ],
+        "compileError": null,
+        "systemError": null
+      },
+      "expectedVerdict": "PRESENTATION_ERROR",
+      "expectedCaseVerdicts": ["PRESENTATION_ERROR"]
+    }
+  ]
+}

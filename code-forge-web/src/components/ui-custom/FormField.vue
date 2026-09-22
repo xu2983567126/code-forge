@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import Label from "@/components/ui/label/Label.vue";
+
 defineProps<{
   label: string
   required?: boolean
@@ -11,9 +13,9 @@ defineProps<{
   <div class="space-y-2">
     <Label :for="htmlFor">
       {{ label }}
-      <span v-if="required" class="text-red-600">*</span>
+      <span v-if="required" class="text-status-error">*</span>
     </Label>
     <slot />
-    <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
+    <p v-if="error" class="text-sm text-status-error">{{ error }}</p>
   </div>
 </template>

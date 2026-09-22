@@ -17,6 +17,14 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        <!-- ===== 异步判题（M7-1）：RabbitMQ 任务队列 =====
+             引 amqp starter（Boot 4 自带，随版本发布无兼容坑）。
+             消息用 hutool JSONUtil 序列化为 String 发送，规避 Boot 4 Jackson3 缺 jackson-databind 的陷阱，
+             不配置 Jackson2JsonMessageConverter。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
         <!-- @Async 事件监听需要代理支持 -->
         <!-- Boot 4 已移除 spring-boot-starter-aop，改为直接引入 spring-aop + aspectjweaver（@Aspect 鉴权切面所需） -->
         <dependency>
@@ -45,10 +53,6 @@
         <dependency>
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-openfeign</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.cloud</groupId>
@@ -107,11 +111,43 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Boot 4 模块化拆分：MockMvc 支持从 starter-test 挪到了独立模块 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- ===== 集成测试基建：Testcontainers 起真实 MySQL =====
+             权限矩阵测试需要真库执行 mapper/分页/逻辑删除，不能 mock 掉数据层。
+             版本由父 pom（Boot 4 dependencyManagement）统一管理。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>mysql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
 
         <!-- 聚合文档：暴露本服务 /v3/api-docs 供网关 nextdoc4j 聚合（不带 UI，更轻） -->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-api</artifactId>
+        </dependency>
+
+        <!-- ===== P0 可观测（M7）：reaper 重派计数需要 MeterRegistry =====
+             仅引入 actuator（自带 micrometer-core），不暴露 prometheus 端点（submission 非判题热点，指标经 judge 统一看）。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
     </dependencies>
 

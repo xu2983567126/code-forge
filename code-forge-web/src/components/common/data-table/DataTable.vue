@@ -157,18 +157,29 @@ const getItemAtIndex = (index: number): T => {
         position: 'relative',
       }"
     >
-      <Table container-class="overflow-visible">
+      <Table container-class="overflow-visible" class="table-fixed">
         <TableHeader class="sticky top-0 bg-background z-10">
           <slot name="header">
             <TableRow
               v-if="hasColumnDefinitions"
               class="border-b border-border"
             >
+              <!--
+                col.class 必须同时上 th：table-fixed 的列宽由表头决定，虚拟行又是
+                脱离布局的 absolute —— 若只有 td 有宽度而 th 没有，表头均分列宽、
+                数据行按各自宽度渲染，逐列全部错位。
+
+                虚拟行自身还要是 `display:table` + `table-layout:fixed`：absolute 的
+                tr 会被块化，td 被浏览器包进匿名表格走自动布局（剩余空间按内容分配），
+                与表头的 fixed 比例分配不是一套算法，宽屏下逐列偏开。让行自己也成为
+                fixed 表格（同 width:100%、同列宽），两端才算出同一套列宽。
+              -->
               <TableHead
                 v-for="col in columns"
                 :key="col.key"
                 :class="[
                   'font-extrabold text-[var(--primary)] text-xxs uppercase tracking-widest py-4 px-4 bg-[var(--surface-sunken)]/60',
+                  col.class,
                   col.headerClass,
                 ]"
               >
@@ -191,6 +202,8 @@ const getItemAtIndex = (index: number): T => {
                   position: 'absolute',
                   top: 0,
                   left: 0,
+                  display: 'table',
+                  tableLayout: 'fixed',
                   width: '100%',
                   height: `${virtualRow.size}px`,
                   transform: `translateY(${virtualRow.start}px)`,
@@ -207,17 +220,24 @@ const getItemAtIndex = (index: number): T => {
                     )
                   "
                 >
-                  <template v-if="$slots[`cell-${col.key}`]">
-                    <slot
-                      :name="`cell-${col.key}`"
-                      :item="getItemAtIndex(virtualRow.index)"
-                    />
-                  </template>
-                  <template v-else>
-                    {{
-                      getCellValue(getItemAtIndex(virtualRow.index), col.key)
-                    }}
-                  </template>
+                  <!--
+                    必须包一层 truncate：虚拟行是 absolute，脱离表格布局后每行的列宽
+                    各自按内容计算，长内容（如 19 位雪花 ID）会撑破列宽压到隔壁列。
+                    外层 table 用 table-fixed 锁死列宽，这里负责把超宽内容截断。
+                  -->
+                  <div class="truncate">
+                    <template v-if="$slots[`cell-${col.key}`]">
+                      <slot
+                        :name="`cell-${col.key}`"
+                        :item="getItemAtIndex(virtualRow.index)"
+                      />
+                    </template>
+                    <template v-else>
+                      {{
+                        getCellValue(getItemAtIndex(virtualRow.index), col.key)
+                      }}
+                    </template>
+                  </div>
                 </TableCell>
               </TableRow>
             </template>

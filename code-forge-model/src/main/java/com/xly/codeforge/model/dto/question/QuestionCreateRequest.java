@@ -8,8 +8,6 @@ import java.util.List;
 /**
  * 创建请求
  *
- * @author <a href="https://github.com/liyupi">程序员鱼皮</a>
- * @from <a href="https://yupi.icu">编程导航知识星球</a>
  */
 @Data
 public class QuestionCreateRequest implements Serializable, QuestionRequest {
@@ -48,6 +46,21 @@ public class QuestionCreateRequest implements Serializable, QuestionRequest {
      * 判题配置（json 对象）
      */
     private JudgeConfig judgeConfig;
+
+    /**
+     * 特判程序源码（compareMode=SPJ 时由沙箱执行）
+     */
+    private String spjCode;
+
+    /**
+     * 特判程序语言，对齐 submission.language 取值
+     */
+    private String spjLanguage;
+
+    /**
+     * 判题代码模板（编辑器预置骨架，用户可见）
+     */
+    private String codeTemplate;
 
     private static final long serialVersionUID = 1L;
 }

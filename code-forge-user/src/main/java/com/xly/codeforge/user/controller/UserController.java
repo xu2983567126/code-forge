@@ -2,12 +2,12 @@ package com.xly.codeforge.user.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.xly.codeforge.common.annotation.AuthCheck;
-import com.xly.codeforge.common.common.BaseResponse;
+import com.xly.codeforge.common.common.Result;
 import com.xly.codeforge.common.common.ErrorCode;
-import com.xly.codeforge.common.common.ResultUtils;
+import com.xly.codeforge.common.exception.BusinessAssert;
+import com.xly.codeforge.common.utils.ResultUtils;
 import com.xly.codeforge.common.constant.UserConstant;
 import com.xly.codeforge.common.exception.BusinessException;
-import com.xly.codeforge.common.exception.ThrowUtils;
 import com.xly.codeforge.model.dto.dashboard.UserHeatmapDTO;
 import com.xly.codeforge.model.dto.dashboard.UserStats;
 import com.xly.codeforge.model.dto.user.*;
@@ -19,7 +19,6 @@ import com.xly.codeforge.user.service.DashboardService;
 import com.xly.codeforge.user.service.UserService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
@@ -45,8 +44,6 @@ import static com.xly.codeforge.user.service.impl.UserServiceImpl.SALT;
  * <p>注意 {@code POST /user/list/page/vo} 是公开的用户展示列表（榜单等），
  * 不属于管理端，故不带该前缀。</p>
  *
- * @author <a href="https://github.com/liyupi">程序员鱼皮</a>
- * @from <a href="https://yupi.icu">编程导航知识星球</a>
  */
 @RestController
 @RequestMapping("/")
@@ -68,7 +65,7 @@ public class UserController {
      * @return
      */
     @PostMapping("/register")
-    public BaseResponse<Long> userRegister(@RequestBody UserRegisterRequest userRegisterRequest) {
+    public Result<Long> userRegister(@RequestBody UserRegisterRequest userRegisterRequest) {
         if (userRegisterRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -90,7 +87,7 @@ public class UserController {
      * @return
      */
     @PostMapping("/login")
-    public BaseResponse<LoginUserVO> userLogin(@RequestBody UserLoginRequest userLoginRequest, HttpServletRequest request) {
+    public Result<LoginUserVO> userLogin(@RequestBody UserLoginRequest userLoginRequest, HttpServletRequest request) {
         if (userLoginRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -110,7 +107,7 @@ public class UserController {
      * @return
      */
     @PostMapping("/logout")
-    public BaseResponse<Boolean> userLogout(HttpServletRequest request) {
+    public Result<Boolean> userLogout(HttpServletRequest request) {
         if (request == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -125,7 +122,7 @@ public class UserController {
      * @return
      */
     @GetMapping("/get/login")
-    public BaseResponse<LoginUserVO> getLoginUser(HttpServletRequest request) {
+    public Result<LoginUserVO> getLoginUser(HttpServletRequest request) {
         User user = userService.getLoginUser(request);
         return ResultUtils.success(userService.getLoginUserVO(user));
     }
@@ -142,7 +139,7 @@ public class UserController {
      */
     @PostMapping("/manage/create")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Long> createUser(@RequestBody UserCreateRequest userCreateRequest, HttpServletRequest request) {
+    public Result<Long> createUser(@RequestBody UserCreateRequest userCreateRequest, HttpServletRequest request) {
         if (userCreateRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -153,7 +150,7 @@ public class UserController {
         String encryptPassword = DigestUtils.md5DigestAsHex((SALT + defaultPassword).getBytes());
         user.setPassword(encryptPassword);
         boolean result = userService.save(user);
-        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+        BusinessAssert.isTrue(result, ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(user.getId());
     }
 
@@ -164,8 +161,8 @@ public class UserController {
      */
     @DeleteMapping("/manage/{id}")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Boolean> deleteUser(@PathVariable("id") long id, HttpServletRequest request) {
-        ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
+    public Result<Boolean> deleteUser(@PathVariable("id") long id, HttpServletRequest request) {
+                BusinessAssert.isTrue(id > 0, ErrorCode.INVALID_ID);
         boolean b = userService.removeById(id);
         return ResultUtils.success(b);
     }
@@ -180,9 +177,9 @@ public class UserController {
      */
     @PatchMapping("/manage/{id}")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Boolean> updateUser(@PathVariable("id") long id,
-            @RequestBody UserUpdateRequest userUpdateRequest,
-            HttpServletRequest request) {
+    public Result<Boolean> updateUser(@PathVariable("id") long id,
+                                      @RequestBody UserUpdateRequest userUpdateRequest,
+                                      HttpServletRequest request) {
         if (userUpdateRequest == null || id <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -190,7 +187,7 @@ public class UserController {
         BeanUtils.copyProperties(userUpdateRequest, user);
         user.setId(id);
         boolean result = userService.updateById(user);
-        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+        BusinessAssert.isTrue(result, ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(true);
     }
 
@@ -201,12 +198,12 @@ public class UserController {
      */
     @GetMapping("/manage/{id}")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<User> getUserById(@PathVariable("id") long id, HttpServletRequest request) {
+    public Result<User> getUserById(@PathVariable("id") long id, HttpServletRequest request) {
         if (id <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         User user = userService.getById(id);
-        ThrowUtils.throwIf(user == null, ErrorCode.NOT_FOUND_ERROR);
+        BusinessAssert.notNull(user, ErrorCode.NOT_FOUND_ERROR);
         return ResultUtils.success(user);
     }
 
@@ -217,10 +214,10 @@ public class UserController {
      */
     @GetMapping("/manage/{id}/vo")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<UserVO> getUserVOById(@PathVariable("id") long id, HttpServletRequest request) {
-        ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
+    public Result<UserVO> getUserVOById(@PathVariable("id") long id, HttpServletRequest request) {
+                BusinessAssert.isTrue(id > 0, ErrorCode.INVALID_ID);
         User user = userService.getById(id);
-        ThrowUtils.throwIf(user == null, ErrorCode.NOT_FOUND_ERROR);
+        BusinessAssert.notNull(user, ErrorCode.NOT_FOUND_ERROR);
         return ResultUtils.success(userService.getUserVO(user));
     }
 
@@ -231,8 +228,8 @@ public class UserController {
      */
     @PostMapping("/manage/list/page")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Page<User>> listUserByPage(@RequestBody UserQueryRequest userQueryRequest,
-            HttpServletRequest request) {
+    public Result<Page<User>> listUserByPage(@RequestBody UserQueryRequest userQueryRequest,
+                                             HttpServletRequest request) {
         long current = userQueryRequest.getCurrent();
         long size = userQueryRequest.getPageSize();
         Page<User> userPage = userService.page(new Page<>(current, size),
@@ -247,15 +244,15 @@ public class UserController {
      * 它是公开的用户展示列表（榜单、题解作者列表等），不是管理端接口。</p>
      */
     @PostMapping("/list/page/vo")
-    public BaseResponse<Page<UserVO>> listUserVOByPage(@RequestBody UserQueryRequest userQueryRequest,
-            HttpServletRequest request) {
+    public Result<Page<UserVO>> listUserVOByPage(@RequestBody UserQueryRequest userQueryRequest,
+                                                 HttpServletRequest request) {
         if (userQueryRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         long current = userQueryRequest.getCurrent();
         long size = userQueryRequest.getPageSize();
         // 限制爬虫
-        ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
+        BusinessAssert.isTrue(size <= 20, ErrorCode.PARAMS_ERROR);
         Page<User> userPage = userService.page(new Page<>(current, size),
                 userService.getQueryWrapper(userQueryRequest));
         Page<UserVO> userVOPage = new Page<>(current, size, userPage.getTotal());
@@ -279,11 +276,11 @@ public class UserController {
      */
     @PostMapping("/manage/list/page/vo/with-stats")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Page<UserWithStatsVO>> listUserWithStatsByPage(
+    public Result<Page<UserWithStatsVO>> listUserWithStatsByPage(
             @RequestBody UserQueryRequest userQueryRequest,
             HttpServletRequest request) {
-        ThrowUtils.throwIf(userQueryRequest == null, ErrorCode.PARAMS_ERROR);
-        ThrowUtils.throwIf(userQueryRequest.getPageSize() > 50, ErrorCode.PARAMS_ERROR, "单页最多 50 条");
+        BusinessAssert.notNull(userQueryRequest, ErrorCode.PARAMS_ERROR);
+        BusinessAssert.isTrue(userQueryRequest.getPageSize() <= 50, ErrorCode.PARAMS_ERROR, "单页最多 50 条");
         return ResultUtils.success(userService.pageUserWithStats(userQueryRequest));
     }
 
@@ -295,8 +292,8 @@ public class UserController {
      */
     @PostMapping("/manage/{id}/ban")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Boolean> banUser(@PathVariable("id") long id, HttpServletRequest request) {
-        ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
+    public Result<Boolean> banUser(@PathVariable("id") long id, HttpServletRequest request) {
+                BusinessAssert.isTrue(id > 0, ErrorCode.INVALID_ID);
         return ResultUtils.success(userService.banUser(id));
     }
 
@@ -307,8 +304,8 @@ public class UserController {
      */
     @PostMapping("/manage/{id}/unban")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Boolean> unbanUser(@PathVariable("id") long id, HttpServletRequest request) {
-        ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
+    public Result<Boolean> unbanUser(@PathVariable("id") long id, HttpServletRequest request) {
+                BusinessAssert.isTrue(id > 0, ErrorCode.INVALID_ID);
         return ResultUtils.success(userService.unbanUser(id));
     }
 
@@ -322,9 +319,9 @@ public class UserController {
      */
     @PostMapping("/manage/batch/delete")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Integer> batchDeleteUser(@RequestBody UserBatchDeleteRequest batchDeleteRequest,
-            HttpServletRequest request) {
-        ThrowUtils.throwIf(batchDeleteRequest == null, ErrorCode.PARAMS_ERROR);
+    public Result<Integer> batchDeleteUser(@RequestBody UserBatchDeleteRequest batchDeleteRequest,
+                                           HttpServletRequest request) {
+        BusinessAssert.notNull(batchDeleteRequest, ErrorCode.PARAMS_ERROR);
         return ResultUtils.success(userService.batchDeleteUser(batchDeleteRequest.getIdList()));
     }
 
@@ -337,7 +334,7 @@ public class UserController {
      */
     @GetMapping("/manage/stats")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<UserStats> getUserStats(HttpServletRequest request) {
+    public Result<UserStats> getUserStats(HttpServletRequest request) {
         return ResultUtils.success(dashboardService.loadUserStats());
     }
 
@@ -352,11 +349,11 @@ public class UserController {
      */
     @GetMapping("/manage/{id}/heatmap")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<UserHeatmapDTO> getUserHeatmap(@PathVariable("id") long id,
-            @RequestParam(value = "days", defaultValue = "365") int days,
-            HttpServletRequest request) {
-        ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
-        int safeDays = Math.min(Math.max(days, 1), 365);
+    public Result<UserHeatmapDTO> getUserHeatmap(@PathVariable("id") long id,
+                                                 @RequestParam(value = "days", defaultValue = "365") int days,
+                                                 HttpServletRequest request) {
+                BusinessAssert.isTrue(id > 0, ErrorCode.INVALID_ID);
+        int safeDays = Math.clamp(days, 1, 365);
         return ResultUtils.success(dashboardService.loadHeatmap(id, safeDays));
     }
 
@@ -373,8 +370,8 @@ public class UserController {
      * @param userUpdateMyRequest 只带需要改的字段
      */
     @PatchMapping("/me")
-    public BaseResponse<Boolean> updateMyUser(@RequestBody UserUpdateMyRequest userUpdateMyRequest,
-            HttpServletRequest request) {
+    public Result<Boolean> updateMyUser(@RequestBody UserUpdateMyRequest userUpdateMyRequest,
+                                        HttpServletRequest request) {
         if (userUpdateMyRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -383,7 +380,7 @@ public class UserController {
         BeanUtils.copyProperties(userUpdateMyRequest, user);
         user.setId(loginUser.getId());
         boolean result = userService.updateById(user);
-        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+        BusinessAssert.isTrue(result, ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(true);
     }
 }

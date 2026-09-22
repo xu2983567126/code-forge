@@ -1,6 +1,12 @@
 package com.xly.codeforge.model.enums;
 
+import com.xly.codeforge.model.entity.QuestionBankQuestion;
+import lombok.Getter;
 import org.apache.commons.lang3.ObjectUtils;
+
+import java.util.Arrays;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 题单批量操作类型
@@ -13,12 +19,17 @@ import org.apache.commons.lang3.ObjectUtils;
  *
  * @author xuxu
  */
+@Getter
 public enum QuestionBankQuestionActionEnum {
 
-    /** 批量加入题单 */
+    /**
+     * 批量加入题单
+     */
     ADD("加入", "ADD"),
 
-    /** 批量移出题单 */
+    /**
+     * 批量移出题单
+     */
     REMOVE("移出", "REMOVE");
 
     private final String text;
@@ -30,29 +41,22 @@ public enum QuestionBankQuestionActionEnum {
         this.value = value;
     }
 
+    private static final Map<String, QuestionBankQuestionActionEnum> VALUE_MAP =
+        Arrays.stream(values())
+            .collect(Collectors.toUnmodifiableMap(
+                e -> e.name().toLowerCase(),
+                e -> e,
+                (a, _) -> {
+                    throw new IllegalStateException("重复的 value: " + a.getValue().toLowerCase());
+                }));
+
     /**
-     * 根据 value 获取枚举（大小写不敏感）
-     *
-     * @param value 前端传入的 action（如 {@code add} / {@code ADD}）
-     * @return 匹配的枚举，无匹配返回 null
+     * 从配置字符串解析
      */
-    public static QuestionBankQuestionActionEnum getEnumByValue(String value) {
-        if (ObjectUtils.isEmpty(value)) {
+    public static QuestionBankQuestionActionEnum getEnumByValue(String code) {
+        if (ObjectUtils.isEmpty(code)) {
             return null;
         }
-        for (QuestionBankQuestionActionEnum anEnum : QuestionBankQuestionActionEnum.values()) {
-            if (anEnum.value.equalsIgnoreCase(value.trim())) {
-                return anEnum;
-            }
-        }
-        return null;
-    }
-
-    public String getText() {
-        return text;
-    }
-
-    public String getValue() {
-        return value;
+        return VALUE_MAP.get(code.toLowerCase().trim());
     }
 }

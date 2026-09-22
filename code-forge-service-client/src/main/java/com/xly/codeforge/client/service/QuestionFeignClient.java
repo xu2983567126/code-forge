@@ -2,17 +2,15 @@ package com.xly.codeforge.client.service;
 
 import com.xly.codeforge.model.dto.dashboard.QuestionStatsDTO;
 import com.xly.codeforge.model.entity.Question;
-import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.service.annotation.GetExchange;
+import org.springframework.web.service.annotation.HttpExchange;
 import org.springframework.web.bind.annotation.RequestParam;
 
 /**
  * 题目服务
  *
- * @author <a href="https://github.com/liyupi">程序员鱼皮</a>
- * @from <a href="https://yupi.icu">编程导航知识星球</a>
  */
-@FeignClient(name = "code-forge-question", path = "/api/question/inner")
+@HttpExchange("http://code-forge-question/api/question/inner")
 public interface QuestionFeignClient {
 
     /**
@@ -21,7 +19,7 @@ public interface QuestionFeignClient {
      * @param id
      * @return
      */
-    @GetMapping("/get/id")
+    @GetExchange("/get/id")
     Question getQuestionById(@RequestParam("id") long id);
 
     /**
@@ -29,6 +27,6 @@ public interface QuestionFeignClient {
      *
      * @return 题目总数 / 难度分布 / 标签分布 / 题单数
      */
-    @GetMapping("/stats")
+    @GetExchange("/stats")
     QuestionStatsDTO getStats();
 }

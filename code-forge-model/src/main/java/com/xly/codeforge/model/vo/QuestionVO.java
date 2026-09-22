@@ -1,9 +1,7 @@
 package com.xly.codeforge.model.vo;
 
 import cn.hutool.json.JSONUtil;
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.xly.codeforge.model.dto.question.JudgeCase;
 import com.xly.codeforge.model.dto.question.JudgeConfig;
 import com.xly.codeforge.model.entity.Question;
 import lombok.Data;
@@ -14,17 +12,17 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * 题目
+ * 题目（视图对象）
  *
- * @TableName question
+ * <p>这是 VO 不是实体：不带任何 MyBatis-Plus 注解。{@code tags} / {@code judgeConfig} /
+ * {@code examples} 由实体的 JSON 文本列解析而来；{@code submitNum} / {@code acceptedNum}
+ * 由提交域实时统计回填，不读实体上那两个已废弃的计数列。</p>
  */
-@TableName(value = "question")
 @Data
 public class QuestionVO implements Serializable {
     /**
      * id
      */
-    @TableId(type = IdType.AUTO)
     private Long id;
 
     /**
@@ -61,6 +59,22 @@ public class QuestionVO implements Serializable {
      * 判题配置（json 对象）
      */
     private JudgeConfig judgeConfig;
+
+    /**
+     * 判题代码模板（编辑器预置骨架，用户可见）
+     */
+    private String codeTemplate;
+
+    /**
+     * 样例用例数上限。题目页只展示样例，judge_case 里其余用例保持隐藏 ——
+     * 全量透出会让做题者"对着用例编程"，判题失去意义。
+     */
+    public static final int EXAMPLE_LIMIT = 2;
+
+    /**
+     * 样例用例（judgeCase 的前 EXAMPLE_LIMIT 条）
+     */
+    private List<JudgeCase> examples;
 
     /**
      * 点赞数
@@ -134,6 +148,17 @@ public class QuestionVO implements Serializable {
         questionVO.setTags(tagList);
         String judgeConfigStr = question.getJudgeConfig();
         questionVO.setJudgeConfig(JSONUtil.toBean(judgeConfigStr, JudgeConfig.class));
+        // 样例：judgeCase 的前 EXAMPLE_LIMIT 条；JSON 非法时置空，不影响详情主流程
+        String judgeCaseStr = question.getJudgeCase();
+        if (judgeCaseStr != null && !judgeCaseStr.isBlank()) {
+            try {
+                List<JudgeCase> judgeCases = JSONUtil.toList(judgeCaseStr, JudgeCase.class);
+                questionVO.setExamples(
+                        judgeCases.subList(0, Math.min(EXAMPLE_LIMIT, judgeCases.size())));
+            } catch (Exception e) {
+                questionVO.setExamples(null);
+            }
+        }
         return questionVO;
     }
 }

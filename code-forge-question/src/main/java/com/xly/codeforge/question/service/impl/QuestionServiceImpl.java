@@ -1,14 +1,17 @@
 package com.xly.codeforge.question.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.xly.codeforge.common.common.ErrorCode;
 import com.xly.codeforge.common.constant.CommonConstant;
+import com.xly.codeforge.common.exception.BusinessAssert;
 import com.xly.codeforge.common.exception.BusinessException;
-import com.xly.codeforge.common.exception.ThrowUtils;
 import com.xly.codeforge.common.utils.SqlUtils;
+import com.xly.codeforge.model.dto.QuestionSubmissionStatsDTO;
+import com.xly.codeforge.model.dto.question.JudgeCase;
 import com.xly.codeforge.model.dto.question.QuestionQueryRequest;
 import com.xly.codeforge.model.entity.Question;
 import com.xly.codeforge.model.entity.User;
@@ -17,23 +20,25 @@ import com.xly.codeforge.model.vo.QuestionAdjacentVO;
 import com.xly.codeforge.model.vo.QuestionVO;
 import com.xly.codeforge.question.mapper.QuestionMapper;
 import com.xly.codeforge.question.service.QuestionService;
+import com.xly.codeforge.client.service.SubmissionFeignClient;
 import com.xly.codeforge.client.service.UserFeignClient;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
  * 题目服务实现
  *
- * @author <a href="https://github.com/liyupi">程序员鱼皮</a>
- * @from <a href="https://yupi.icu">编程导航知识星球</a>
  */
 @Service
+@Slf4j
 public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question>
         implements QuestionService {
 
@@ -47,6 +52,13 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question>
 
     @Resource
     private UserFeignClient userFeignClient;
+
+    /**
+     * 提交服务：题目域不自持提交计数（{@code submit_num}/{@code accepted_num} 两列已无人维护），
+     * 通过率在读取时向数据属主（提交域）实时取。
+     */
+    @Resource
+    private SubmissionFeignClient submissionFeignClient;
 
     @Override
     public void validQuestion(Question question, boolean create) {
@@ -63,27 +75,54 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question>
 
         // 创建时，参数不能为空
         if (create) {
-            ThrowUtils.throwIf(StringUtils.isAnyBlank(title, content, tags), ErrorCode.PARAMS_ERROR);
+            BusinessAssert.notBlank(new String[]{title, content, tags}, ErrorCode.PARAMS_ERROR, "参数不能为空");
         }
         // 有参数则校验
-        if (StringUtils.isNotBlank(title) && title.length() > 80) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "标题过长");
-        }
-        if (StringUtils.isNotBlank(content) && content.length() > 8192) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "内容过长");
-        }
-        if (StringUtils.isNotBlank(answer) && answer.length() > 8192) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "答案过长");
-        }
+        BusinessAssert.isTrue(StringUtils.isNotBlank(title) && title.length() <= 80,
+            ErrorCode.PARAMS_ERROR, "标题过长");
+        BusinessAssert.isTrue(StringUtils.isNotBlank(content) && content.length() <= 8192,
+            ErrorCode.PARAMS_ERROR, "内容过长");
+        BusinessAssert.isTrue(StringUtils.isNotBlank(answer) && answer.length() <= 8192,
+            ErrorCode.PARAMS_ERROR, "答案过长");
         // 难度必须在白名单内，否则题库筛选会因脏值而查不到
-        if (StringUtils.isNotBlank(difficulty) && !VALID_DIFFICULTY.contains(difficulty)) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "难度取值非法，仅支持：" + VALID_DIFFICULTY);
+        BusinessAssert.isTrue(StringUtils.isNotBlank(difficulty) && VALID_DIFFICULTY.contains(difficulty),
+            ErrorCode.PARAMS_ERROR, "难度取值非法，仅支持：" + VALID_DIFFICULTY);
+        BusinessAssert.isTrue(StringUtils.isNotBlank(judgeCase) && judgeCase.length() <= 8192,
+            ErrorCode.PARAMS_ERROR, "判题用例过长");
+        BusinessAssert.isTrue(StringUtils.isNotBlank(judgeConfig) && judgeConfig.length() <= 8192,
+            ErrorCode.PARAMS_ERROR, "判题配置过长");
+        validateJudgeCases(judgeCase);
+    }
+
+    /**
+     * 校验判题用例 JSON：可解析、至少一条、且每条都带期望输出。
+     *
+     * <p>这里是「字段改名但数据没跟着改」这类事故的唯一前置拦截点：若 JSON 用的是旧 key
+     * （如 {@code output}），{@link JudgeCase#getExpectedOutput()} 会反序列化成 {@code null}，
+     * 判题时只能落进中性态、最终表现为「状态成功但逐用例未知」。在保存这一步直接拒存，
+     * 坏用例就再也进不了库。</p>
+     *
+     * <p>空值放行：PATCH 更新可能不带 judgeCase，是否必填由创建分支的 title/content/tags 校验负责。</p>
+     *
+     * @param judgeCase 判题用例 JSON 数组
+     * @throws BusinessException 非法 JSON / 空数组 / 存在缺少 expectedOutput 的用例
+     */
+    private void validateJudgeCases(String judgeCase) {
+        if (StringUtils.isBlank(judgeCase)) {
+            return;
         }
-        if (StringUtils.isNotBlank(judgeCase) && judgeCase.length() > 8192) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "判题用例过长");
+        List<JudgeCase> cases;
+        try {
+            cases = JSONUtil.toList(judgeCase, JudgeCase.class);
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "判题用例不是合法的 JSON 数组");
         }
-        if (StringUtils.isNotBlank(judgeConfig) && judgeConfig.length() > 8192) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "判题配置过长");
+        BusinessAssert.notEmpty(cases, ErrorCode.PARAMS_ERROR, "判题用例不能为空");
+        for (int i = 0; i < cases.size(); i++) {
+            JudgeCase one = cases.get(i);
+            BusinessAssert.isTrue(one != null && StringUtils.isNotBlank(one.getExpectedOutput()),
+                    ErrorCode.PARAMS_ERROR,
+                    "第 " + (i + 1) + " 个判题用例缺少期望输出（字段名须为 expectedOutput）");
         }
     }
 
@@ -149,6 +188,7 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question>
         Long userId = question.getUserId();
         User user = (userId != null && userId > 0) ? userFeignClient.getById(userId) : null;
         questionVO.setUserVO(userFeignClient.getUserVO(user));
+        fillSubmissionStats(List.of(questionVO));
         return questionVO;
     }
 
@@ -172,6 +212,80 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question>
         }).collect(Collectors.toList());
         questionVOPage.setRecords(questionVOList);
         return questionVOPage;
+    }
+
+    /**
+     * 用提交域的实时统计填充 VO 的 submitNum / acceptedNum。
+     *
+     * @param questionVOList 本页题目 VO；空列表直接返回
+     */
+    private void fillSubmissionStats(List<QuestionVO> questionVOList) {
+        if (CollUtil.isEmpty(questionVOList)) {
+            return;
+        }
+        List<Long> questionIds = questionVOList.stream()
+                .map(QuestionVO::getId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        Map<Long, QuestionSubmissionStatsDTO> statsMap = loadSubmissionStats(questionIds);
+        for (QuestionVO questionVO : questionVOList) {
+            QuestionSubmissionStatsDTO one = statsMap.get(questionVO.getId());
+            questionVO.setSubmitNum(one == null ? 0 : toInt(one.getSubmitCount()));
+            questionVO.setAcceptedNum(one == null ? 0 : toInt(one.getAcceptedCount()));
+        }
+    }
+
+    @Override
+    public void fillStatsForEntities(List<Question> questions) {
+        if (CollUtil.isEmpty(questions)) {
+            return;
+        }
+        List<Long> questionIds = questions.stream()
+                .map(Question::getId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        Map<Long, QuestionSubmissionStatsDTO> statsMap = loadSubmissionStats(questionIds);
+        for (Question question : questions) {
+            QuestionSubmissionStatsDTO one = statsMap.get(question.getId());
+            question.setSubmitNum(one == null ? 0 : toInt(one.getSubmitCount()));
+            question.setAcceptedNum(one == null ? 0 : toInt(one.getAcceptedCount()));
+        }
+    }
+
+    /**
+     * 拉取题目维度的提交统计。
+     *
+     * <p>为什么题目域不读自己的 {@code submit_num} / {@code accepted_num}：它们在运行期
+     * 没有任何更新点（只有造数脚本 INSERT 时写死 0），前端按它们算通过率恒得 0%。
+     * 提交统计属于提交域，这里改为<b>一次 RPC 覆盖整批题目</b>（列表页 20 行也只打一次）。</p>
+     *
+     * <p>提交服务不可用时降级为空映射（调用方按 0 处理，前端本就有 {@code ?? 0} 兜底）：
+     * 题库列表是只读浏览页，不该因为增值信息取不到就整页失败，但会打 warn 便于发现。</p>
+     *
+     * @param questionIds 题目 id 列表（可为空）
+     * @return 题目 id → 统计；无数据或调用失败时为空映射
+     */
+    private Map<Long, QuestionSubmissionStatsDTO> loadSubmissionStats(List<Long> questionIds) {
+        if (CollUtil.isEmpty(questionIds)) {
+            return Map.of();
+        }
+        try {
+            List<QuestionSubmissionStatsDTO> stats = submissionFeignClient.listStatsByQuestionIds(questionIds);
+            return (stats == null ? List.<QuestionSubmissionStatsDTO>of() : stats).stream()
+                    .collect(Collectors.toMap(QuestionSubmissionStatsDTO::getQuestionId, s -> s, (a, b) -> a));
+        } catch (Exception e) {
+            log.warn("拉取题目提交统计失败，通过率降级为 0，questionIds={}", questionIds, e);
+            return Map.of();
+        }
+    }
+
+    /**
+     * 统计值拆箱：接口返回 Long，载体字段是 Integer；缺失时按 0 计。
+     */
+    private int toInt(Long value) {
+        return value == null ? 0 : value.intValue();
     }
 
     @Override

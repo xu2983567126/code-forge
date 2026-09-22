@@ -2,11 +2,11 @@ package com.xly.codeforge.question.controller;
 
 import cn.hutool.core.collection.CollUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.xly.codeforge.common.common.BaseResponse;
+import com.xly.codeforge.common.common.Result;
 import com.xly.codeforge.common.common.ErrorCode;
-import com.xly.codeforge.common.common.ResultUtils;
+import com.xly.codeforge.common.exception.BusinessAssert;
+import com.xly.codeforge.common.utils.ResultUtils;
 import com.xly.codeforge.common.exception.BusinessException;
-import com.xly.codeforge.common.exception.ThrowUtils;
 import com.xly.codeforge.model.dto.questionbank.QuestionBankAddRequest;
 import com.xly.codeforge.model.dto.questionbank.QuestionBankQueryRequest;
 import com.xly.codeforge.model.dto.questionbank.QuestionBankUpdateRequest;
@@ -63,11 +63,9 @@ public class QuestionBankController {
      * 前端无法伪造他人建题单。请求体可带 {@code questionIdList} 一次性把题加进去。</p>
      */
     @PostMapping
-    public BaseResponse<Long> addQuestionBank(@RequestBody QuestionBankAddRequest addRequest,
-                                              HttpServletRequest request) {
-        if (addRequest == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+    public Result<Long> addQuestionBank(@RequestBody QuestionBankAddRequest addRequest,
+                                        HttpServletRequest request) {
+        BusinessAssert.notNull(addRequest, ErrorCode.EMPTY_REQUEST_ERROR);
         User loginUser = userFeignClient.getLoginUser(request);
         QuestionBank questionBank = new QuestionBank();
         BeanUtils.copyProperties(addRequest, questionBank);
@@ -79,7 +77,7 @@ public class QuestionBankController {
             questionBank.setIsPublic(1);
         }
         boolean saved = questionBankService.save(questionBank);
-        ThrowUtils.throwIf(!saved, ErrorCode.OPERATION_ERROR);
+        BusinessAssert.isTrue(saved, ErrorCode.OPERATION_ERROR);
 
         // 带上初始题目：复用批量添加逻辑（内部已做存在性校验与去重）
         if (CollUtil.isNotEmpty(addRequest.getQuestionIdList())) {
@@ -95,11 +93,11 @@ public class QuestionBankController {
      * <p>{@code DELETE /question-bank/{id}}。只有创建者或管理员能删。</p>
      */
     @DeleteMapping("/{id}")
-    public BaseResponse<Boolean> deleteQuestionBank(@PathVariable("id") long id, HttpServletRequest request) {
-        ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
+    public Result<Boolean> deleteQuestionBank(@PathVariable("id") long id, HttpServletRequest request) {
+        BusinessAssert.isTrue(id > 0, ErrorCode.PARAMS_ERROR);
         User loginUser = userFeignClient.getLoginUser(request);
         QuestionBank questionBank = questionBankService.getById(id);
-        ThrowUtils.throwIf(questionBank == null, ErrorCode.NOT_FOUND_ERROR);
+        BusinessAssert.notNull(questionBank, ErrorCode.NOT_FOUND_ERROR, "题单不存在");
         // 越权按 404 处理，不泄露题单存在性
         questionBankService.checkBankEditAuth(questionBank, loginUser);
         boolean removed = questionBankService.removeById(id);
@@ -116,16 +114,16 @@ public class QuestionBankController {
      * <p>权限：创建者本人或管理员，由 {@code checkBankEditAuth} 校验。</p>
      */
     @PatchMapping("/{id}")
-    public BaseResponse<Boolean> updateQuestionBank(@PathVariable("id") long id,
-                                                    @RequestBody QuestionBankUpdateRequest updateRequest,
-                                                    HttpServletRequest request) {
-        ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
+    public Result<Boolean> updateQuestionBank(@PathVariable("id") long id,
+                                              @RequestBody QuestionBankUpdateRequest updateRequest,
+                                              HttpServletRequest request) {
+        BusinessAssert.isTrue(id > 0, ErrorCode.INVALID_ID);
         if (updateRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         User loginUser = userFeignClient.getLoginUser(request);
         QuestionBank oldBank = questionBankService.getById(id);
-        ThrowUtils.throwIf(oldBank == null, ErrorCode.NOT_FOUND_ERROR);
+        BusinessAssert.notNull(oldBank, ErrorCode.NOT_FOUND_ERROR);
         questionBankService.checkBankEditAuth(oldBank, loginUser);
 
         QuestionBank questionBank = new QuestionBank();
@@ -142,7 +140,7 @@ public class QuestionBankController {
      * <p>{@code GET /question-bank/{id}}</p>
      */
     @GetMapping("/{id}")
-    public BaseResponse<QuestionBank> getQuestionBank(@PathVariable("id") long id, HttpServletRequest request) {
+    public Result<QuestionBank> getQuestionBank(@PathVariable("id") long id, HttpServletRequest request) {
         User loginUser = userFeignClient.getLoginUser(request);
         return ResultUtils.success(questionBankService.getQuestionBankById(id, loginUser));
     }
@@ -153,7 +151,7 @@ public class QuestionBankController {
      * <p>{@code GET /question-bank/{id}/vo}</p>
      */
     @GetMapping("/{id}/vo")
-    public BaseResponse<QuestionBankVO> getQuestionBankVO(@PathVariable("id") long id, HttpServletRequest request) {
+    public Result<QuestionBankVO> getQuestionBankVO(@PathVariable("id") long id, HttpServletRequest request) {
         User loginUser = userFeignClient.getLoginUser(request);
         return ResultUtils.success(questionBankService.getQuestionBankVOById(id, loginUser));
     }
@@ -167,13 +165,13 @@ public class QuestionBankController {
      * <p>可见性：默认只返回「公开的 OR 自己的」，避免私有题单泄露到列表里。</p>
      */
     @PostMapping("/list/page/vo")
-    public BaseResponse<Page<QuestionBankVO>> listQuestionBankVOByPage(
+    public Result<Page<QuestionBankVO>> listQuestionBankVOByPage(
             @RequestBody QuestionBankQueryRequest queryRequest, HttpServletRequest request) {
         if (queryRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         long size = queryRequest.getPageSize();
-        ThrowUtils.throwIf(size > MAX_PAGE_SIZE, ErrorCode.PARAMS_ERROR, "页大小不能超过 " + MAX_PAGE_SIZE);
+        BusinessAssert.isTrue(size <= MAX_PAGE_SIZE, ErrorCode.PARAMS_ERROR, "页大小不能超过 " + MAX_PAGE_SIZE);
         User loginUser = userFeignClient.getLoginUser(request);
         Page<QuestionBank> bankPage = questionBankService.page(
                 new Page<>(Math.max(queryRequest.getCurrent(), 1), size),
@@ -188,13 +186,13 @@ public class QuestionBankController {
      * 前端传什么都无效 —— 这是防越权读他人题单列表的关键。</p>
      */
     @PostMapping("/my/list/page/vo")
-    public BaseResponse<Page<QuestionBankVO>> listMyQuestionBankVOByPage(
+    public Result<Page<QuestionBankVO>> listMyQuestionBankVOByPage(
             @RequestBody QuestionBankQueryRequest queryRequest, HttpServletRequest request) {
         if (queryRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         long size = queryRequest.getPageSize();
-        ThrowUtils.throwIf(size > MAX_PAGE_SIZE, ErrorCode.PARAMS_ERROR, "页大小不能超过 " + MAX_PAGE_SIZE);
+        BusinessAssert.isTrue(size <= MAX_PAGE_SIZE, ErrorCode.PARAMS_ERROR, "页大小不能超过 " + MAX_PAGE_SIZE);
         User loginUser = userFeignClient.getLoginUser(request);
         queryRequest.setUserId(loginUser.getId());
         Page<QuestionBank> bankPage = questionBankService.page(
@@ -210,8 +208,8 @@ public class QuestionBankController {
      * 新题单默认私有（详见 Service 注释），源题单 fork 数 +1。</p>
      */
     @PostMapping("/{id}/fork")
-    public BaseResponse<Long> forkQuestionBank(@PathVariable("id") long id, HttpServletRequest request) {
-        ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
+    public Result<Long> forkQuestionBank(@PathVariable("id") long id, HttpServletRequest request) {
+        BusinessAssert.isTrue(id > 0, ErrorCode.INVALID_ID);
         User loginUser = userFeignClient.getLoginUser(request);
         return ResultUtils.success(questionBankService.forkQuestionBank(id, loginUser));
     }

@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.xly.codeforge.common.common.ErrorCode;
-import com.xly.codeforge.common.exception.ThrowUtils;
+import com.xly.codeforge.common.exception.BusinessAssert;
 import com.xly.codeforge.model.dto.questionfavourite.QuestionFavouriteQueryRequest;
 import com.xly.codeforge.model.entity.Question;
 import com.xly.codeforge.model.entity.QuestionFavourite;
@@ -49,11 +49,11 @@ public class QuestionFavouriteServiceImpl extends ServiceImpl<QuestionFavouriteM
 
     @Override
     public int toggleFavourite(long questionId, User loginUser) {
-        ThrowUtils.throwIf(loginUser == null || loginUser.getId() == null, ErrorCode.NOT_LOGIN_ERROR);
-        ThrowUtils.throwIf(questionId <= 0, ErrorCode.PARAMS_ERROR);
+        BusinessAssert.isTrue(loginUser != null && loginUser.getId() != null, ErrorCode.NOT_LOGIN_ERROR);
+        BusinessAssert.isTrue(questionId > 0, ErrorCode.PARAMS_ERROR);
         // 题目必须存在且未删除，否则会收藏到一个点进去 404 的幽灵条目
         Question question = questionMapper.selectById(questionId);
-        ThrowUtils.throwIf(question == null, ErrorCode.NOT_FOUND_ERROR);
+        BusinessAssert.notNull(question, ErrorCode.NOT_FOUND_ERROR);
 
         Long userId = loginUser.getId();
         QuestionFavourite existing = this.getOne(new LambdaQueryWrapper<QuestionFavourite>()
@@ -78,11 +78,11 @@ public class QuestionFavouriteServiceImpl extends ServiceImpl<QuestionFavouriteM
 
     @Override
     public Page<QuestionVO> pageMyFavouriteQuestion(QuestionFavouriteQueryRequest queryRequest, User loginUser) {
-        ThrowUtils.throwIf(loginUser == null || loginUser.getId() == null, ErrorCode.NOT_LOGIN_ERROR);
-        ThrowUtils.throwIf(queryRequest == null, ErrorCode.PARAMS_ERROR);
+        BusinessAssert.isTrue(loginUser != null && loginUser.getId() != null, ErrorCode.NOT_LOGIN_ERROR);
+        BusinessAssert.notNull(queryRequest, ErrorCode.PARAMS_ERROR);
         long current = Math.max(queryRequest.getCurrent(), 1);
         long size = queryRequest.getPageSize();
-        ThrowUtils.throwIf(size > MAX_PAGE_SIZE, ErrorCode.PARAMS_ERROR, "页大小不能超过 " + MAX_PAGE_SIZE);
+        BusinessAssert.isTrue(size <= MAX_PAGE_SIZE, ErrorCode.PARAMS_ERROR, "页大小不能超过 " + MAX_PAGE_SIZE);
 
         Long userId = loginUser.getId();
         // 第一步：分页查收藏记录（只取 question_id，避免把整行拉回来）

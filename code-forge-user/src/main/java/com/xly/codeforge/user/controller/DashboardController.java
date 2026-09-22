@@ -1,11 +1,11 @@
 package com.xly.codeforge.user.controller;
 
 import com.xly.codeforge.common.annotation.AuthCheck;
-import com.xly.codeforge.common.common.BaseResponse;
+import com.xly.codeforge.common.common.Result;
 import com.xly.codeforge.common.common.ErrorCode;
-import com.xly.codeforge.common.common.ResultUtils;
+import com.xly.codeforge.common.exception.BusinessAssert;
+import com.xly.codeforge.common.utils.ResultUtils;
 import com.xly.codeforge.common.constant.UserConstant;
-import com.xly.codeforge.common.exception.ThrowUtils;
 import com.xly.codeforge.model.dto.dashboard.DashboardStatsVO;
 import com.xly.codeforge.model.dto.dashboard.UserHeatmapDTO;
 import com.xly.codeforge.model.dto.dashboard.UserStats;
@@ -60,7 +60,7 @@ public class DashboardController {
      */
     @GetMapping("/manage/stats")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<DashboardStatsVO> getDashboardStats(HttpServletRequest request) {
+    public Result<DashboardStatsVO> getDashboardStats(HttpServletRequest request) {
         return ResultUtils.success(dashboardService.loadStats());
     }
 
@@ -72,7 +72,7 @@ public class DashboardController {
      */
     @GetMapping("/manage/user-stats")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<UserStats> getUserStats(HttpServletRequest request) {
+    public Result<UserStats> getUserStats(HttpServletRequest request) {
         return ResultUtils.success(dashboardService.loadUserStats());
     }
 
@@ -87,14 +87,14 @@ public class DashboardController {
      * @param days   统计窗口天数，默认 365，上限 365
      */
     @GetMapping("/heatmap")
-    public BaseResponse<UserHeatmapDTO> getHeatmap(@RequestParam(value = "userId", required = false) Long userId,
-            @RequestParam(value = "days", defaultValue = "365") int days,
-            HttpServletRequest request) {
+    public Result<UserHeatmapDTO> getHeatmap(@RequestParam(value = "userId", required = false) Long userId,
+                                             @RequestParam(value = "days", defaultValue = "365") int days,
+                                             HttpServletRequest request) {
         User loginUser = userService.getLoginUser(request);
         long targetUserId = userId == null ? loginUser.getId() : userId;
-        ThrowUtils.throwIf(targetUserId <= 0, ErrorCode.PARAMS_ERROR);
+        BusinessAssert.isTrue(targetUserId > 0, ErrorCode.PARAMS_ERROR);
         // 窗口收敛放在这里也放在下游：上下游各自兜底，任一侧被改坏都不会造出异常数据量
-        int safeDays = Math.min(Math.max(days, 1), MAX_HEATMAP_DAYS);
+        int safeDays = Math.clamp(days, 1, MAX_HEATMAP_DAYS);
         return ResultUtils.success(dashboardService.loadHeatmap(targetUserId, safeDays));
     }
 }

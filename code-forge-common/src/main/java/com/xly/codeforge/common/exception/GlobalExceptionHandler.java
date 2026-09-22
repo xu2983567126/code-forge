@@ -1,9 +1,9 @@
 package com.xly.codeforge.common.exception;
 
 import cn.dev33.satoken.exception.NotLoginException;
-import com.xly.codeforge.common.common.BaseResponse;
+import com.xly.codeforge.common.common.Result;
 import com.xly.codeforge.common.common.ErrorCode;
-import com.xly.codeforge.common.common.ResultUtils;
+import com.xly.codeforge.common.utils.ResultUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -11,22 +11,23 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 /**
  * 全局异常处理器
  *
- * @author <a href="https://github.com/liyupi">程序员鱼皮</a>
- * @from <a href="https://yupi.icu">编程导航知识星球</a>
  */
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
-    public BaseResponse<?> businessExceptionHandler(BusinessException e) {
-        // 「未登录」是匿名访问下的正常业务态，不打整条堆栈（否则日志被刷屏、真故障难定位）
-        if (e.getCode() == ErrorCode.NOT_LOGIN_ERROR.getCode()) {
-            log.warn("未登录: {}", e.getMessage());
-            return ResultUtils.error(e.getCode(), e.getMessage());
+    public Result<?> businessExceptionHandler(BusinessException e) {
+        ErrorCode errorCode = e.getCode();
+        String message = e.getMessage();
+
+        if (ErrorCode.NOT_LOGIN_ERROR == errorCode) {
+            log.warn("未登录: code={}, message={}", errorCode, message);
+        } else {
+            log.error("BusinessException: code={}, message={}", errorCode, message, e);
         }
-        log.error("BusinessException", e);
         return ResultUtils.error(e.getCode(), e.getMessage());
+
     }
 
     /**
@@ -39,14 +40,14 @@ public class GlobalExceptionHandler {
      * <p>Spring 按最具体的异常类型匹配 handler，故不受兜底分支影响。</p>
      */
     @ExceptionHandler(NotLoginException.class)
-    public BaseResponse<?> notLoginExceptionHandler(NotLoginException e) {
+    public Result<?> notLoginExceptionHandler(NotLoginException e) {
         // 未登录属正常业务态：单行 warn，不打堆栈
         log.warn("未登录（type={}）: {}", e.getType(), e.getMessage());
         return ResultUtils.error(ErrorCode.NOT_LOGIN_ERROR);
     }
 
     @ExceptionHandler(RuntimeException.class)
-    public BaseResponse<?> runtimeExceptionHandler(RuntimeException e) {
+    public Result<?> runtimeExceptionHandler(RuntimeException e) {
         log.error("RuntimeException", e);
         return ResultUtils.error(ErrorCode.SYSTEM_ERROR, "系统错误");
     }

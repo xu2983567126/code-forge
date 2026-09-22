@@ -4,7 +4,7 @@ export type ClientOptions = {
     baseURL: 'http://localhost:8101/api' | (string & {});
 };
 
-export type BaseResponseInteger = {
+export type ResultInteger = {
     code?: number;
     data?: number;
     message?: string;
@@ -19,16 +19,16 @@ export type QuestionFavouriteQueryRequest = {
     difficulty?: string;
 };
 
-export type BaseResponsePageQuestionVo = {
-    code?: number;
-    data?: PageQuestionVo;
-    message?: string;
+export type JudgeCase = {
+    input?: string;
+    expectedOutput?: string;
 };
 
 export type JudgeConfig = {
     timeLimit?: number;
     memoryLimit?: number;
     stackLimit?: number;
+    compareMode?: string;
 };
 
 export type OrderItem = {
@@ -48,7 +48,7 @@ export type PageQuestionVo = {
 };
 
 export type QuestionVo = {
-    id?: number;
+    id?: string;
     title?: string;
     content?: string;
     tags?: Array<string>;
@@ -56,16 +56,24 @@ export type QuestionVo = {
     submitNum?: number;
     acceptedNum?: number;
     judgeConfig?: JudgeConfig;
+    codeTemplate?: string;
+    examples?: Array<JudgeCase>;
     thumbNum?: number;
     favourNum?: number;
-    userId?: number;
+    userId?: string;
     createTime?: string;
     updateTime?: string;
     userVO?: UserVo;
 };
 
+export type ResultPageQuestionVo = {
+    code?: number;
+    data?: PageQuestionVo;
+    message?: string;
+};
+
 export type UserVo = {
-    id?: number;
+    id?: string;
     username?: string;
     avatar?: string;
     profile?: string;
@@ -78,10 +86,10 @@ export type QuestionBankAddRequest = {
     description?: string;
     picture?: string;
     isPublic?: number;
-    questionIdList?: Array<number>;
+    questionIdList?: Array<string>;
 };
 
-export type BaseResponseLong = {
+export type ResultLong = {
     code?: number;
     data?: number;
     message?: string;
@@ -92,19 +100,13 @@ export type QuestionBankQueryRequest = {
     pageSize?: number;
     sortField?: string;
     sortOrder?: string;
-    id?: number;
-    notId?: number;
+    id?: string;
+    notId?: string;
     searchText?: string;
     title?: string;
     description?: string;
-    userId?: number;
+    userId?: string;
     isPublic?: number;
-};
-
-export type BaseResponsePageQuestionBankVo = {
-    code?: number;
-    data?: PageQuestionBankVo;
-    message?: string;
 };
 
 export type PageQuestionBankVo = {
@@ -119,21 +121,26 @@ export type PageQuestionBankVo = {
 };
 
 export type QuestionBankVo = {
-    id?: number;
+    id?: string;
     title?: string;
     description?: string;
     picture?: string;
-    userId?: number;
+    userId?: string;
     isPublic?: number;
     isFavourited?: boolean;
     questionCount?: number;
     solvedCount?: number;
-    sourceBankId?: number;
+    sourceBankId?: string;
     forkNum?: number;
     createTime?: string;
     updateTime?: string;
     userVO?: UserVo;
-    questionList?: Array<QuestionVo>;
+};
+
+export type ResultPageQuestionBankVo = {
+    code?: number;
+    data?: PageQuestionBankVo;
+    message?: string;
 };
 
 export type QuestionBankQuestionQueryRequest = {
@@ -141,21 +148,15 @@ export type QuestionBankQuestionQueryRequest = {
     pageSize?: number;
     sortField?: string;
     sortOrder?: string;
-    id?: number;
-    questionBankId?: number;
-    questionId?: number;
-    userId?: number;
+    id?: string;
+    questionBankId?: string;
+    questionId?: string;
+    userId?: string;
 };
 
-export type BaseResponseBoolean = {
+export type ResultBoolean = {
     code?: number;
     data?: boolean;
-    message?: string;
-};
-
-export type BaseResponsePageQuestionBankQuestion = {
-    code?: number;
-    data?: PageQuestionBankQuestion;
     message?: string;
 };
 
@@ -171,17 +172,23 @@ export type PageQuestionBankQuestion = {
 };
 
 export type QuestionBankQuestion = {
-    id?: number;
-    questionBankId?: number;
-    questionId?: number;
-    userId?: number;
+    id?: string;
+    questionBankId?: string;
+    questionId?: string;
+    userId?: string;
     createTime?: string;
     updateTime?: string;
 };
 
+export type ResultPageQuestionBankQuestion = {
+    code?: number;
+    data?: PageQuestionBankQuestion;
+    message?: string;
+};
+
 export type QuestionBankQuestionBulkRequest = {
-    questionBankId?: number;
-    questionIdList?: Array<number>;
+    questionBankId?: string;
+    questionIdList?: Array<string>;
     action?: string;
 };
 
@@ -190,7 +197,7 @@ export type QuestionBankFavouriteRequest = {
     pageSize?: number;
     sortField?: string;
     sortOrder?: string;
-    bankId?: number;
+    bankId?: string;
     searchText?: string;
 };
 
@@ -199,21 +206,15 @@ export type QuestionQueryRequest = {
     pageSize?: number;
     sortField?: string;
     sortOrder?: string;
-    id?: number;
+    id?: string;
     title?: string;
     content?: string;
     tags?: Array<string>;
     answer?: string;
     difficulty?: string;
     searchText?: string;
-    notId?: number;
-    userId?: number;
-};
-
-export type BaseResponsePageQuestion = {
-    code?: number;
-    data?: PageQuestion;
-    message?: string;
+    notId?: string;
+    userId?: string;
 };
 
 export type PageQuestion = {
@@ -228,7 +229,7 @@ export type PageQuestion = {
 };
 
 export type Question = {
-    id?: number;
+    id?: string;
     title?: string;
     content?: string;
     tags?: string;
@@ -238,17 +239,21 @@ export type Question = {
     acceptedNum?: number;
     judgeCase?: string;
     judgeConfig?: string;
+    spjCode?: string;
+    spjLanguage?: string;
+    codeTemplate?: string;
     thumbNum?: number;
     favourNum?: number;
-    userId?: number;
+    userId?: string;
     createTime?: string;
     updateTime?: string;
     isDelete?: number;
 };
 
-export type JudgeCase = {
-    input?: string;
-    output?: string;
+export type ResultPageQuestion = {
+    code?: number;
+    data?: PageQuestion;
+    message?: string;
 };
 
 export type QuestionCreateRequest = {
@@ -259,10 +264,13 @@ export type QuestionCreateRequest = {
     difficulty?: string;
     judgeCase?: Array<JudgeCase>;
     judgeConfig?: JudgeConfig;
+    spjCode?: string;
+    spjLanguage?: string;
+    codeTemplate?: string;
 };
 
 export type QuestionUpdateRequest = {
-    id?: number;
+    id?: string;
     title?: string;
     content?: string;
     tags?: Array<string>;
@@ -270,51 +278,48 @@ export type QuestionUpdateRequest = {
     difficulty?: string;
     judgeCase?: Array<JudgeCase>;
     judgeConfig?: JudgeConfig;
+    spjCode?: string;
+    spjLanguage?: string;
+    codeTemplate?: string;
 };
 
 export type QuestionBankUpdateRequest = {
-    id?: number;
+    id?: string;
     title?: string;
     description?: string;
     picture?: string;
     isPublic?: number;
 };
 
-export type BaseResponseQuestionVo = {
+export type ResultQuestionVo = {
     code?: number;
     data?: QuestionVo;
     message?: string;
 };
 
-export type BaseResponseQuestionBank = {
-    code?: number;
-    data?: QuestionBank;
-    message?: string;
-};
-
 export type QuestionBank = {
-    id?: number;
+    id?: string;
     title?: string;
     description?: string;
     picture?: string;
-    userId?: number;
+    userId?: string;
     isPublic?: number;
-    sourceBankId?: number;
+    sourceBankId?: string;
     forkNum?: number;
     createTime?: string;
     updateTime?: string;
     isDelete?: number;
 };
 
-export type BaseResponseQuestionBankVo = {
+export type ResultQuestionBank = {
     code?: number;
-    data?: QuestionBankVo;
+    data?: QuestionBank;
     message?: string;
 };
 
-export type BaseResponsePageLong = {
+export type ResultQuestionBankVo = {
     code?: number;
-    data?: PageLong;
+    data?: QuestionBankVo;
     message?: string;
 };
 
@@ -329,6 +334,12 @@ export type PageLong = {
     pages?: number;
 };
 
+export type ResultPageLong = {
+    code?: number;
+    data?: PageLong;
+    message?: string;
+};
+
 export type QuestionStatsDto = {
     totalCount?: number;
     difficultyDistribution?: {
@@ -340,21 +351,21 @@ export type QuestionStatsDto = {
     bankCount?: number;
 };
 
-export type BaseResponseQuestionAdjacentVo = {
-    code?: number;
-    data?: QuestionAdjacentVo;
-    message?: string;
-};
-
 export type QuestionAdjacentVo = {
-    currentId?: number;
+    currentId?: string;
     prev?: QuestionNavVo;
     next?: QuestionNavVo;
 };
 
 export type QuestionNavVo = {
-    id?: number;
+    id?: string;
     title?: string;
+};
+
+export type ResultQuestionAdjacentVo = {
+    code?: number;
+    data?: QuestionAdjacentVo;
+    message?: string;
 };
 
 export type UserRegisterRequest = {
@@ -368,18 +379,12 @@ export type UserQueryRequest = {
     pageSize?: number;
     sortField?: string;
     sortOrder?: string;
-    id?: number;
+    id?: string;
     unionId?: string;
     mpOpenId?: string;
     username?: string;
     profile?: string;
     role?: string;
-};
-
-export type BaseResponsePageUser = {
-    code?: number;
-    data?: PageUser;
-    message?: string;
 };
 
 export type PageUser = {
@@ -393,8 +398,14 @@ export type PageUser = {
     pages?: number;
 };
 
+export type ResultPageUser = {
+    code?: number;
+    data?: PageUser;
+    message?: string;
+};
+
 export type User = {
-    id?: number;
+    id?: string;
     account?: string;
     password?: string;
     unionId?: string;
@@ -408,12 +419,6 @@ export type User = {
     isDelete?: number;
 };
 
-export type BaseResponsePageUserWithStatsVo = {
-    code?: number;
-    data?: PageUserWithStatsVo;
-    message?: string;
-};
-
 export type PageUserWithStatsVo = {
     records?: Array<UserWithStatsVo>;
     total?: number;
@@ -425,8 +430,14 @@ export type PageUserWithStatsVo = {
     pages?: number;
 };
 
+export type ResultPageUserWithStatsVo = {
+    code?: number;
+    data?: PageUserWithStatsVo;
+    message?: string;
+};
+
 export type UserWithStatsVo = {
-    id?: number;
+    id?: string;
     username?: string;
     avatar?: string;
     profile?: string;
@@ -453,14 +464,8 @@ export type UserLoginRequest = {
     password?: string;
 };
 
-export type BaseResponseLoginUserVo = {
-    code?: number;
-    data?: LoginUserVo;
-    message?: string;
-};
-
 export type LoginUserVo = {
-    id?: number;
+    id?: string;
     username?: string;
     avatar?: string;
     profile?: string;
@@ -469,9 +474,9 @@ export type LoginUserVo = {
     updateTime?: string;
 };
 
-export type BaseResponsePageUserVo = {
+export type ResultLoginUserVo = {
     code?: number;
-    data?: PageUserVo;
+    data?: LoginUserVo;
     message?: string;
 };
 
@@ -486,6 +491,12 @@ export type PageUserVo = {
     pages?: number;
 };
 
+export type ResultPageUserVo = {
+    code?: number;
+    data?: PageUserVo;
+    message?: string;
+};
+
 export type UserUpdateMyRequest = {
     username?: string;
     avatar?: string;
@@ -493,34 +504,34 @@ export type UserUpdateMyRequest = {
 };
 
 export type UserUpdateRequest = {
-    id?: number;
+    id?: string;
     username?: string;
     avatar?: string;
     profile?: string;
     role?: string;
 };
 
-export type BaseResponseUser = {
+export type ResultUser = {
     code?: number;
     data?: User;
     message?: string;
 };
 
-export type BaseResponseUserVo = {
+export type ResultUserVo = {
     code?: number;
     data?: UserVo;
-    message?: string;
-};
-
-export type BaseResponseUserHeatmapDto = {
-    code?: number;
-    data?: UserHeatmapDto;
     message?: string;
 };
 
 export type DailyCount = {
     date?: string;
     count?: number;
+};
+
+export type ResultUserHeatmapDto = {
+    code?: number;
+    data?: UserHeatmapDto;
+    message?: string;
 };
 
 export type UserHeatmapDto = {
@@ -530,7 +541,7 @@ export type UserHeatmapDto = {
     dailyCounts?: Array<DailyCount>;
 };
 
-export type BaseResponseUserStats = {
+export type ResultUserStats = {
     code?: number;
     data?: UserStats;
     message?: string;
@@ -547,17 +558,17 @@ export type UserStats = {
     recentDailyTrend?: Array<DailyCount>;
 };
 
-export type BaseResponseDashboardStatsVo = {
-    code?: number;
-    data?: DashboardStatsVo;
-    message?: string;
-};
-
 export type DashboardStatsVo = {
     userStats?: UserStats;
     questionStats?: QuestionStatsDto;
     submissionStats?: SubmissionStatsDto;
     degradedDomains?: Array<string>;
+};
+
+export type ResultDashboardStatsVo = {
+    code?: number;
+    data?: DashboardStatsVo;
+    message?: string;
 };
 
 export type SubmissionStatsDto = {
@@ -574,13 +585,13 @@ export type SubmissionStatsDto = {
     recentDailyTrend?: Array<DailyCount>;
 };
 
-export type SubmissionAddRequest = {
+export type SubmissionCreateRequest = {
     language?: string;
     code?: string;
-    questionId?: number;
+    questionId?: string;
 };
 
-export type BaseResponseMapLongBoolean = {
+export type ResultMapLongBoolean = {
     code?: number;
     data?: {
         [key: string]: boolean;
@@ -588,23 +599,26 @@ export type BaseResponseMapLongBoolean = {
     message?: string;
 };
 
-export type RunCodeRequest = {
-    questionId?: number;
-    code?: string;
-    language?: string;
+export type RunCase = {
     input?: string;
+    expectedOutput?: string;
 };
 
-export type BaseResponseRunCodeVo = {
-    code?: number;
-    data?: RunCodeVo;
-    message?: string;
+export type RunJudgeRequest = {
+    questionId?: string;
+    code?: string;
+    language?: string;
+    cases?: Array<RunCase>;
 };
 
 export type JudgeCaseResult = {
     status?: string;
+    input?: string;
     time?: number;
     memory?: number;
+    errorMessage?: string;
+    output?: string;
+    expectedOutput?: string;
 };
 
 export type JudgeInfo = {
@@ -612,16 +626,13 @@ export type JudgeInfo = {
     time?: number;
     memory?: number;
     caseResults?: Array<JudgeCaseResult>;
+    detail?: string;
 };
 
-export type RunCodeVo = {
-    outputList?: Array<string>;
-    status?: number;
+export type ResultJudgeInfo = {
+    code?: number;
+    data?: JudgeInfo;
     message?: string;
-    verdict?: string;
-    time?: number;
-    memory?: number;
-    judgeInfo?: JudgeInfo;
 };
 
 export type SubmissionQueryRequest = {
@@ -630,17 +641,11 @@ export type SubmissionQueryRequest = {
     sortField?: string;
     sortOrder?: string;
     language?: string;
-    questionId?: number;
+    questionId?: string;
     status?: number;
     verdict?: string;
     verdicts?: Array<string>;
-    userId?: number;
-};
-
-export type BaseResponsePageSubmissionVo = {
-    code?: number;
-    data?: PageSubmissionVo;
-    message?: string;
+    userId?: string;
 };
 
 export type PageSubmissionVo = {
@@ -654,15 +659,21 @@ export type PageSubmissionVo = {
     pages?: number;
 };
 
+export type ResultPageSubmissionVo = {
+    code?: number;
+    data?: PageSubmissionVo;
+    message?: string;
+};
+
 export type SubmissionVo = {
-    id?: number;
+    id?: string;
     language?: string;
     code?: string;
     judgeInfo?: JudgeInfo;
     status?: number;
     verdict?: string;
-    questionId?: number;
-    userId?: number;
+    questionId?: string;
+    userId?: string;
     createTime?: string;
     updateTime?: string;
     userVO?: UserVo;
@@ -670,42 +681,61 @@ export type SubmissionVo = {
 };
 
 export type SubmissionStatsItemDto = {
-    userId?: number;
+    userId?: string;
     submitCount?: number;
     acceptedCount?: number;
 };
 
 export type Submission = {
-    id?: number;
+    id?: string;
     language?: string;
     code?: string;
     judgeInfo?: string;
     status?: number;
     verdict?: string;
-    questionId?: number;
-    userId?: number;
+    generation?: number;
+    currentAttemptId?: string;
+    judgingLeaseExpiresAt?: string;
+    questionId?: string;
+    userId?: string;
     createTime?: string;
     updateTime?: string;
     isDelete?: number;
 };
 
-export type BaseResponseListMapStringString = {
-    code?: number;
-    data?: Array<{
-        [key: string]: string;
-    }>;
-    message?: string;
+export type QuestionSubmissionStatsDto = {
+    questionId?: string;
+    submitCount?: number;
+    acceptedCount?: number;
 };
 
-export type BaseResponseSubmissionVo = {
+export type SubmissionVerdictRequest = {
+    id?: string;
+    generation?: number;
+    attemptId?: string;
+    status?: number;
+    verdict?: string;
+    judgeInfo?: string;
+};
+
+export type SubmissionFenceRequest = {
+    id?: string;
+    attemptId?: string;
+    generation?: number;
+    ttlSeconds?: number;
+};
+
+export type ResultSubmissionVo = {
     code?: number;
     data?: SubmissionVo;
     message?: string;
 };
 
-export type BaseResponsePageQuestionVoWritable = {
+export type ResultListMapStringString = {
     code?: number;
-    data?: PageQuestionVoWritable;
+    data?: Array<{
+        [key: string]: string;
+    }>;
     message?: string;
 };
 
@@ -726,9 +756,9 @@ export type PageQuestionVoWritable = {
     pages?: number;
 };
 
-export type BaseResponsePageQuestionBankVoWritable = {
+export type ResultPageQuestionVoWritable = {
     code?: number;
-    data?: PageQuestionBankVoWritable;
+    data?: PageQuestionVoWritable;
     message?: string;
 };
 
@@ -749,9 +779,9 @@ export type PageQuestionBankVoWritable = {
     pages?: number;
 };
 
-export type BaseResponsePageQuestionBankQuestionWritable = {
+export type ResultPageQuestionBankVoWritable = {
     code?: number;
-    data?: PageQuestionBankQuestionWritable;
+    data?: PageQuestionBankVoWritable;
     message?: string;
 };
 
@@ -772,9 +802,9 @@ export type PageQuestionBankQuestionWritable = {
     pages?: number;
 };
 
-export type BaseResponsePageQuestionWritable = {
+export type ResultPageQuestionBankQuestionWritable = {
     code?: number;
-    data?: PageQuestionWritable;
+    data?: PageQuestionBankQuestionWritable;
     message?: string;
 };
 
@@ -795,9 +825,9 @@ export type PageQuestionWritable = {
     pages?: number;
 };
 
-export type BaseResponsePageLongWritable = {
+export type ResultPageQuestionWritable = {
     code?: number;
-    data?: PageLongWritable;
+    data?: PageQuestionWritable;
     message?: string;
 };
 
@@ -818,9 +848,9 @@ export type PageLongWritable = {
     pages?: number;
 };
 
-export type BaseResponsePageUserWritable = {
+export type ResultPageLongWritable = {
     code?: number;
-    data?: PageUserWritable;
+    data?: PageLongWritable;
     message?: string;
 };
 
@@ -841,9 +871,9 @@ export type PageUserWritable = {
     pages?: number;
 };
 
-export type BaseResponsePageUserWithStatsVoWritable = {
+export type ResultPageUserWritable = {
     code?: number;
-    data?: PageUserWithStatsVoWritable;
+    data?: PageUserWritable;
     message?: string;
 };
 
@@ -864,9 +894,9 @@ export type PageUserWithStatsVoWritable = {
     pages?: number;
 };
 
-export type BaseResponsePageUserVoWritable = {
+export type ResultPageUserWithStatsVoWritable = {
     code?: number;
-    data?: PageUserVoWritable;
+    data?: PageUserWithStatsVoWritable;
     message?: string;
 };
 
@@ -887,9 +917,9 @@ export type PageUserVoWritable = {
     pages?: number;
 };
 
-export type BaseResponsePageSubmissionVoWritable = {
+export type ResultPageUserVoWritable = {
     code?: number;
-    data?: PageSubmissionVoWritable;
+    data?: PageUserVoWritable;
     message?: string;
 };
 
@@ -910,10 +940,16 @@ export type PageSubmissionVoWritable = {
     pages?: number;
 };
 
+export type ResultPageSubmissionVoWritable = {
+    code?: number;
+    data?: PageSubmissionVoWritable;
+    message?: string;
+};
+
 export type UnfavouriteQuestionData = {
     body?: never;
     path: {
-        questionId: number;
+        questionId: string;
     };
     query?: never;
     url: '/question/question-favourite/{questionId}';
@@ -923,7 +959,7 @@ export type UnfavouriteQuestionResponses = {
     /**
      * OK
      */
-    200: BaseResponseInteger;
+    200: ResultInteger;
 };
 
 export type UnfavouriteQuestionResponse = UnfavouriteQuestionResponses[keyof UnfavouriteQuestionResponses];
@@ -931,7 +967,7 @@ export type UnfavouriteQuestionResponse = UnfavouriteQuestionResponses[keyof Unf
 export type FavouriteQuestionData = {
     body?: never;
     path: {
-        questionId: number;
+        questionId: string;
     };
     query?: never;
     url: '/question/question-favourite/{questionId}';
@@ -941,7 +977,7 @@ export type FavouriteQuestionResponses = {
     /**
      * OK
      */
-    200: BaseResponseInteger;
+    200: ResultInteger;
 };
 
 export type FavouriteQuestionResponse = FavouriteQuestionResponses[keyof FavouriteQuestionResponses];
@@ -957,7 +993,7 @@ export type ListMyFavouriteQuestionResponses = {
     /**
      * OK
      */
-    200: BaseResponsePageQuestionVo;
+    200: ResultPageQuestionVo;
 };
 
 export type ListMyFavouriteQuestionResponse = ListMyFavouriteQuestionResponses[keyof ListMyFavouriteQuestionResponses];
@@ -973,7 +1009,7 @@ export type AddQuestionBankResponses = {
     /**
      * OK
      */
-    200: BaseResponseLong;
+    200: ResultLong;
 };
 
 export type AddQuestionBankResponse = AddQuestionBankResponses[keyof AddQuestionBankResponses];
@@ -981,7 +1017,7 @@ export type AddQuestionBankResponse = AddQuestionBankResponses[keyof AddQuestion
 export type ForkQuestionBankData = {
     body?: never;
     path: {
-        id: number;
+        id: string;
     };
     query?: never;
     url: '/question/question-bank/{id}/fork';
@@ -991,7 +1027,7 @@ export type ForkQuestionBankResponses = {
     /**
      * OK
      */
-    200: BaseResponseLong;
+    200: ResultLong;
 };
 
 export type ForkQuestionBankResponse = ForkQuestionBankResponses[keyof ForkQuestionBankResponses];
@@ -1007,7 +1043,7 @@ export type ListMyQuestionBankVoByPageResponses = {
     /**
      * OK
      */
-    200: BaseResponsePageQuestionBankVo;
+    200: ResultPageQuestionBankVo;
 };
 
 export type ListMyQuestionBankVoByPageResponse = ListMyQuestionBankVoByPageResponses[keyof ListMyQuestionBankVoByPageResponses];
@@ -1023,7 +1059,7 @@ export type ListQuestionBankVoByPageResponses = {
     /**
      * OK
      */
-    200: BaseResponsePageQuestionBankVo;
+    200: ResultPageQuestionBankVo;
 };
 
 export type ListQuestionBankVoByPageResponse = ListQuestionBankVoByPageResponses[keyof ListQuestionBankVoByPageResponses];
@@ -1032,8 +1068,8 @@ export type RemoveQuestionFromBankData = {
     body?: never;
     path?: never;
     query: {
-        questionBankId: number;
-        questionId: number;
+        questionBankId: string;
+        questionId: string;
     };
     url: '/question/question-bank-question';
 };
@@ -1042,7 +1078,7 @@ export type RemoveQuestionFromBankResponses = {
     /**
      * OK
      */
-    200: BaseResponseBoolean;
+    200: ResultBoolean;
 };
 
 export type RemoveQuestionFromBankResponse = RemoveQuestionFromBankResponses[keyof RemoveQuestionFromBankResponses];
@@ -1058,10 +1094,28 @@ export type AddQuestionToBankResponses = {
     /**
      * OK
      */
-    200: BaseResponseBoolean;
+    200: ResultBoolean;
 };
 
 export type AddQuestionToBankResponse = AddQuestionToBankResponses[keyof AddQuestionToBankResponses];
+
+export type PageQuestionsInBankData = {
+    body?: QuestionBankQuestionQueryRequest;
+    path: {
+        questionBankId: string;
+    };
+    query?: never;
+    url: '/question/question-bank-question/{questionBankId}/questions';
+};
+
+export type PageQuestionsInBankResponses = {
+    /**
+     * OK
+     */
+    200: ResultPageQuestionVo;
+};
+
+export type PageQuestionsInBankResponse = PageQuestionsInBankResponses[keyof PageQuestionsInBankResponses];
 
 export type ListQuestionBankQuestionByPageData = {
     body: QuestionBankQuestionQueryRequest;
@@ -1074,7 +1128,7 @@ export type ListQuestionBankQuestionByPageResponses = {
     /**
      * OK
      */
-    200: BaseResponsePageQuestionBankQuestion;
+    200: ResultPageQuestionBankQuestion;
 };
 
 export type ListQuestionBankQuestionByPageResponse = ListQuestionBankQuestionByPageResponses[keyof ListQuestionBankQuestionByPageResponses];
@@ -1090,7 +1144,7 @@ export type BulkOperateQuestionResponses = {
     /**
      * OK
      */
-    200: BaseResponseInteger;
+    200: ResultInteger;
 };
 
 export type BulkOperateQuestionResponse = BulkOperateQuestionResponses[keyof BulkOperateQuestionResponses];
@@ -1098,7 +1152,7 @@ export type BulkOperateQuestionResponse = BulkOperateQuestionResponses[keyof Bul
 export type UnfavouriteBankData = {
     body?: never;
     path: {
-        bankId: number;
+        bankId: string;
     };
     query?: never;
     url: '/question/question-bank-favourite/{bankId}';
@@ -1108,7 +1162,7 @@ export type UnfavouriteBankResponses = {
     /**
      * OK
      */
-    200: BaseResponseInteger;
+    200: ResultInteger;
 };
 
 export type UnfavouriteBankResponse = UnfavouriteBankResponses[keyof UnfavouriteBankResponses];
@@ -1116,7 +1170,7 @@ export type UnfavouriteBankResponse = UnfavouriteBankResponses[keyof Unfavourite
 export type FavouriteBankData = {
     body?: never;
     path: {
-        bankId: number;
+        bankId: string;
     };
     query?: never;
     url: '/question/question-bank-favourite/{bankId}';
@@ -1126,7 +1180,7 @@ export type FavouriteBankResponses = {
     /**
      * OK
      */
-    200: BaseResponseInteger;
+    200: ResultInteger;
 };
 
 export type FavouriteBankResponse = FavouriteBankResponses[keyof FavouriteBankResponses];
@@ -1142,7 +1196,7 @@ export type ListMyFavouriteBankResponses = {
     /**
      * OK
      */
-    200: BaseResponsePageQuestionBankVo;
+    200: ResultPageQuestionBankVo;
 };
 
 export type ListMyFavouriteBankResponse = ListMyFavouriteBankResponses[keyof ListMyFavouriteBankResponses];
@@ -1158,7 +1212,7 @@ export type ListMyQuestionVoByPageResponses = {
     /**
      * OK
      */
-    200: BaseResponsePageQuestionVo;
+    200: ResultPageQuestionVo;
 };
 
 export type ListMyQuestionVoByPageResponse = ListMyQuestionVoByPageResponses[keyof ListMyQuestionVoByPageResponses];
@@ -1174,7 +1228,7 @@ export type ListQuestionByPageResponses = {
     /**
      * OK
      */
-    200: BaseResponsePageQuestion;
+    200: ResultPageQuestion;
 };
 
 export type ListQuestionByPageResponse = ListQuestionByPageResponses[keyof ListQuestionByPageResponses];
@@ -1190,7 +1244,7 @@ export type ListQuestionVoByPageResponses = {
     /**
      * OK
      */
-    200: BaseResponsePageQuestionVo;
+    200: ResultPageQuestionVo;
 };
 
 export type ListQuestionVoByPageResponse = ListQuestionVoByPageResponses[keyof ListQuestionVoByPageResponses];
@@ -1206,7 +1260,7 @@ export type CreateQuestionResponses = {
     /**
      * OK
      */
-    200: BaseResponseLong;
+    200: ResultLong;
 };
 
 export type CreateQuestionResponse = CreateQuestionResponses[keyof CreateQuestionResponses];
@@ -1214,7 +1268,7 @@ export type CreateQuestionResponse = CreateQuestionResponses[keyof CreateQuestio
 export type DeleteQuestionData = {
     body?: never;
     path: {
-        id: number;
+        id: string;
     };
     query?: never;
     url: '/question/{id}';
@@ -1224,7 +1278,7 @@ export type DeleteQuestionResponses = {
     /**
      * OK
      */
-    200: BaseResponseBoolean;
+    200: ResultBoolean;
 };
 
 export type DeleteQuestionResponse = DeleteQuestionResponses[keyof DeleteQuestionResponses];
@@ -1232,7 +1286,7 @@ export type DeleteQuestionResponse = DeleteQuestionResponses[keyof DeleteQuestio
 export type UpdateQuestionData = {
     body: QuestionUpdateRequest;
     path: {
-        id: number;
+        id: string;
     };
     query?: never;
     url: '/question/{id}';
@@ -1242,7 +1296,7 @@ export type UpdateQuestionResponses = {
     /**
      * OK
      */
-    200: BaseResponseBoolean;
+    200: ResultBoolean;
 };
 
 export type UpdateQuestionResponse = UpdateQuestionResponses[keyof UpdateQuestionResponses];
@@ -1250,7 +1304,7 @@ export type UpdateQuestionResponse = UpdateQuestionResponses[keyof UpdateQuestio
 export type DeleteQuestionBankData = {
     body?: never;
     path: {
-        id: number;
+        id: string;
     };
     query?: never;
     url: '/question/question-bank/{id}';
@@ -1260,7 +1314,7 @@ export type DeleteQuestionBankResponses = {
     /**
      * OK
      */
-    200: BaseResponseBoolean;
+    200: ResultBoolean;
 };
 
 export type DeleteQuestionBankResponse = DeleteQuestionBankResponses[keyof DeleteQuestionBankResponses];
@@ -1268,7 +1322,7 @@ export type DeleteQuestionBankResponse = DeleteQuestionBankResponses[keyof Delet
 export type GetQuestionBankData = {
     body?: never;
     path: {
-        id: number;
+        id: string;
     };
     query?: never;
     url: '/question/question-bank/{id}';
@@ -1278,7 +1332,7 @@ export type GetQuestionBankResponses = {
     /**
      * OK
      */
-    200: BaseResponseQuestionBank;
+    200: ResultQuestionBank;
 };
 
 export type GetQuestionBankResponse = GetQuestionBankResponses[keyof GetQuestionBankResponses];
@@ -1286,7 +1340,7 @@ export type GetQuestionBankResponse = GetQuestionBankResponses[keyof GetQuestion
 export type UpdateQuestionBankData = {
     body: QuestionBankUpdateRequest;
     path: {
-        id: number;
+        id: string;
     };
     query?: never;
     url: '/question/question-bank/{id}';
@@ -1296,7 +1350,7 @@ export type UpdateQuestionBankResponses = {
     /**
      * OK
      */
-    200: BaseResponseBoolean;
+    200: ResultBoolean;
 };
 
 export type UpdateQuestionBankResponse = UpdateQuestionBankResponses[keyof UpdateQuestionBankResponses];
@@ -1304,7 +1358,7 @@ export type UpdateQuestionBankResponse = UpdateQuestionBankResponses[keyof Updat
 export type GetQuestionVoByIdData = {
     body?: never;
     path: {
-        id: number;
+        id: string;
     };
     query?: never;
     url: '/question/{id}/vo';
@@ -1314,7 +1368,7 @@ export type GetQuestionVoByIdResponses = {
     /**
      * OK
      */
-    200: BaseResponseQuestionVo;
+    200: ResultQuestionVo;
 };
 
 export type GetQuestionVoByIdResponse = GetQuestionVoByIdResponses[keyof GetQuestionVoByIdResponses];
@@ -1323,7 +1377,7 @@ export type GetRandomQuestionData = {
     body?: never;
     path?: never;
     query: {
-        notId: number;
+        notId: string;
     };
     url: '/question/random';
 };
@@ -1332,7 +1386,7 @@ export type GetRandomQuestionResponses = {
     /**
      * OK
      */
-    200: BaseResponseQuestionVo;
+    200: ResultQuestionVo;
 };
 
 export type GetRandomQuestionResponse = GetRandomQuestionResponses[keyof GetRandomQuestionResponses];
@@ -1340,7 +1394,7 @@ export type GetRandomQuestionResponse = GetRandomQuestionResponses[keyof GetRand
 export type GetQuestionBankVoData = {
     body?: never;
     path: {
-        id: number;
+        id: string;
     };
     query?: never;
     url: '/question/question-bank/{id}/vo';
@@ -1350,7 +1404,7 @@ export type GetQuestionBankVoResponses = {
     /**
      * OK
      */
-    200: BaseResponseQuestionBankVo;
+    200: ResultQuestionBankVo;
 };
 
 export type GetQuestionBankVoResponse = GetQuestionBankVoResponses[keyof GetQuestionBankVoResponses];
@@ -1358,7 +1412,7 @@ export type GetQuestionBankVoResponse = GetQuestionBankVoResponses[keyof GetQues
 export type PageQuestionIdsInBankData = {
     body?: never;
     path: {
-        questionBankId: number;
+        questionBankId: string;
     };
     query?: {
         current?: number;
@@ -1371,7 +1425,7 @@ export type PageQuestionIdsInBankResponses = {
     /**
      * OK
      */
-    200: BaseResponsePageLong;
+    200: ResultPageLong;
 };
 
 export type PageQuestionIdsInBankResponse = PageQuestionIdsInBankResponses[keyof PageQuestionIdsInBankResponses];
@@ -1380,7 +1434,7 @@ export type GetAdjacentQuestionData = {
     body?: never;
     path?: never;
     query: {
-        id: number;
+        id: string;
     };
     url: '/question/adjacent';
 };
@@ -1389,7 +1443,7 @@ export type GetAdjacentQuestionResponses = {
     /**
      * OK
      */
-    200: BaseResponseQuestionAdjacentVo;
+    200: ResultQuestionAdjacentVo;
 };
 
 export type GetAdjacentQuestionResponse = GetAdjacentQuestionResponses[keyof GetAdjacentQuestionResponses];
@@ -1405,7 +1459,7 @@ export type UserRegisterResponses = {
     /**
      * OK
      */
-    200: BaseResponseLong;
+    200: ResultLong;
 };
 
 export type UserRegisterResponse = UserRegisterResponses[keyof UserRegisterResponses];
@@ -1413,7 +1467,7 @@ export type UserRegisterResponse = UserRegisterResponses[keyof UserRegisterRespo
 export type UnbanUserData = {
     body?: never;
     path: {
-        id: number;
+        id: string;
     };
     query?: never;
     url: '/user/manage/{id}/unban';
@@ -1423,7 +1477,7 @@ export type UnbanUserResponses = {
     /**
      * OK
      */
-    200: BaseResponseBoolean;
+    200: ResultBoolean;
 };
 
 export type UnbanUserResponse = UnbanUserResponses[keyof UnbanUserResponses];
@@ -1431,7 +1485,7 @@ export type UnbanUserResponse = UnbanUserResponses[keyof UnbanUserResponses];
 export type BanUserData = {
     body?: never;
     path: {
-        id: number;
+        id: string;
     };
     query?: never;
     url: '/user/manage/{id}/ban';
@@ -1441,7 +1495,7 @@ export type BanUserResponses = {
     /**
      * OK
      */
-    200: BaseResponseBoolean;
+    200: ResultBoolean;
 };
 
 export type BanUserResponse = BanUserResponses[keyof BanUserResponses];
@@ -1457,7 +1511,7 @@ export type ListUserByPageResponses = {
     /**
      * OK
      */
-    200: BaseResponsePageUser;
+    200: ResultPageUser;
 };
 
 export type ListUserByPageResponse = ListUserByPageResponses[keyof ListUserByPageResponses];
@@ -1473,7 +1527,7 @@ export type ListUserWithStatsByPageResponses = {
     /**
      * OK
      */
-    200: BaseResponsePageUserWithStatsVo;
+    200: ResultPageUserWithStatsVo;
 };
 
 export type ListUserWithStatsByPageResponse = ListUserWithStatsByPageResponses[keyof ListUserWithStatsByPageResponses];
@@ -1489,7 +1543,7 @@ export type CreateUserResponses = {
     /**
      * OK
      */
-    200: BaseResponseLong;
+    200: ResultLong;
 };
 
 export type CreateUserResponse = CreateUserResponses[keyof CreateUserResponses];
@@ -1505,7 +1559,7 @@ export type BatchDeleteUserResponses = {
     /**
      * OK
      */
-    200: BaseResponseInteger;
+    200: ResultInteger;
 };
 
 export type BatchDeleteUserResponse = BatchDeleteUserResponses[keyof BatchDeleteUserResponses];
@@ -1521,7 +1575,7 @@ export type UserLogoutResponses = {
     /**
      * OK
      */
-    200: BaseResponseBoolean;
+    200: ResultBoolean;
 };
 
 export type UserLogoutResponse = UserLogoutResponses[keyof UserLogoutResponses];
@@ -1537,7 +1591,7 @@ export type UserLoginResponses = {
     /**
      * OK
      */
-    200: BaseResponseLoginUserVo;
+    200: ResultLoginUserVo;
 };
 
 export type UserLoginResponse = UserLoginResponses[keyof UserLoginResponses];
@@ -1553,7 +1607,7 @@ export type ListUserVoByPageResponses = {
     /**
      * OK
      */
-    200: BaseResponsePageUserVo;
+    200: ResultPageUserVo;
 };
 
 export type ListUserVoByPageResponse = ListUserVoByPageResponses[keyof ListUserVoByPageResponses];
@@ -1569,7 +1623,7 @@ export type UpdateMyUserResponses = {
     /**
      * OK
      */
-    200: BaseResponseBoolean;
+    200: ResultBoolean;
 };
 
 export type UpdateMyUserResponse = UpdateMyUserResponses[keyof UpdateMyUserResponses];
@@ -1577,7 +1631,7 @@ export type UpdateMyUserResponse = UpdateMyUserResponses[keyof UpdateMyUserRespo
 export type DeleteUserData = {
     body?: never;
     path: {
-        id: number;
+        id: string;
     };
     query?: never;
     url: '/user/manage/{id}';
@@ -1587,7 +1641,7 @@ export type DeleteUserResponses = {
     /**
      * OK
      */
-    200: BaseResponseBoolean;
+    200: ResultBoolean;
 };
 
 export type DeleteUserResponse = DeleteUserResponses[keyof DeleteUserResponses];
@@ -1595,7 +1649,7 @@ export type DeleteUserResponse = DeleteUserResponses[keyof DeleteUserResponses];
 export type GetUserByIdData = {
     body?: never;
     path: {
-        id: number;
+        id: string;
     };
     query?: never;
     url: '/user/manage/{id}';
@@ -1605,7 +1659,7 @@ export type GetUserByIdResponses = {
     /**
      * OK
      */
-    200: BaseResponseUser;
+    200: ResultUser;
 };
 
 export type GetUserByIdResponse = GetUserByIdResponses[keyof GetUserByIdResponses];
@@ -1613,7 +1667,7 @@ export type GetUserByIdResponse = GetUserByIdResponses[keyof GetUserByIdResponse
 export type UpdateUserData = {
     body: UserUpdateRequest;
     path: {
-        id: number;
+        id: string;
     };
     query?: never;
     url: '/user/manage/{id}';
@@ -1623,7 +1677,7 @@ export type UpdateUserResponses = {
     /**
      * OK
      */
-    200: BaseResponseBoolean;
+    200: ResultBoolean;
 };
 
 export type UpdateUserResponse = UpdateUserResponses[keyof UpdateUserResponses];
@@ -1631,7 +1685,7 @@ export type UpdateUserResponse = UpdateUserResponses[keyof UpdateUserResponses];
 export type GetUserVoByIdData = {
     body?: never;
     path: {
-        id: number;
+        id: string;
     };
     query?: never;
     url: '/user/manage/{id}/vo';
@@ -1641,7 +1695,7 @@ export type GetUserVoByIdResponses = {
     /**
      * OK
      */
-    200: BaseResponseUserVo;
+    200: ResultUserVo;
 };
 
 export type GetUserVoByIdResponse = GetUserVoByIdResponses[keyof GetUserVoByIdResponses];
@@ -1649,7 +1703,7 @@ export type GetUserVoByIdResponse = GetUserVoByIdResponses[keyof GetUserVoByIdRe
 export type GetUserHeatmapData = {
     body?: never;
     path: {
-        id: number;
+        id: string;
     };
     query?: {
         days?: number;
@@ -1661,7 +1715,7 @@ export type GetUserHeatmapResponses = {
     /**
      * OK
      */
-    200: BaseResponseUserHeatmapDto;
+    200: ResultUserHeatmapDto;
 };
 
 export type GetUserHeatmapResponse = GetUserHeatmapResponses[keyof GetUserHeatmapResponses];
@@ -1677,7 +1731,7 @@ export type GetUserStatsResponses = {
     /**
      * OK
      */
-    200: BaseResponseUserStats;
+    200: ResultUserStats;
 };
 
 export type GetUserStatsResponse = GetUserStatsResponses[keyof GetUserStatsResponses];
@@ -1693,7 +1747,7 @@ export type GetLoginUserResponses = {
     /**
      * OK
      */
-    200: BaseResponseLoginUserVo;
+    200: ResultLoginUserVo;
 };
 
 export type GetLoginUserResponse = GetLoginUserResponses[keyof GetLoginUserResponses];
@@ -1709,7 +1763,7 @@ export type GetUserStats1Responses = {
     /**
      * OK
      */
-    200: BaseResponseUserStats;
+    200: ResultUserStats;
 };
 
 export type GetUserStats1Response = GetUserStats1Responses[keyof GetUserStats1Responses];
@@ -1725,7 +1779,7 @@ export type GetDashboardStatsResponses = {
     /**
      * OK
      */
-    200: BaseResponseDashboardStatsVo;
+    200: ResultDashboardStatsVo;
 };
 
 export type GetDashboardStatsResponse = GetDashboardStatsResponses[keyof GetDashboardStatsResponses];
@@ -1734,7 +1788,7 @@ export type GetHeatmapData = {
     body?: never;
     path?: never;
     query?: {
-        userId?: number;
+        userId?: string;
         days?: number;
     };
     url: '/user/dashboard/heatmap';
@@ -1744,13 +1798,13 @@ export type GetHeatmapResponses = {
     /**
      * OK
      */
-    200: BaseResponseUserHeatmapDto;
+    200: ResultUserHeatmapDto;
 };
 
 export type GetHeatmapResponse = GetHeatmapResponses[keyof GetHeatmapResponses];
 
 export type SubmitData = {
-    body: SubmissionAddRequest;
+    body: SubmissionCreateRequest;
     path?: never;
     query?: never;
     url: '/submission/submit';
@@ -1760,7 +1814,7 @@ export type SubmitResponses = {
     /**
      * OK
      */
-    200: BaseResponseLong;
+    200: ResultLong;
 };
 
 export type SubmitResponse = SubmitResponses[keyof SubmitResponses];
@@ -1776,26 +1830,26 @@ export type MapSolvedQuestionsResponses = {
     /**
      * OK
      */
-    200: BaseResponseMapLongBoolean;
+    200: ResultMapLongBoolean;
 };
 
 export type MapSolvedQuestionsResponse = MapSolvedQuestionsResponses[keyof MapSolvedQuestionsResponses];
 
-export type RunCodeData = {
-    body: RunCodeRequest;
+export type RunWithJudgeData = {
+    body: RunJudgeRequest;
     path?: never;
     query?: never;
-    url: '/submission/run';
+    url: '/submission/run-with-judge';
 };
 
-export type RunCodeResponses = {
+export type RunWithJudgeResponses = {
     /**
      * OK
      */
-    200: BaseResponseRunCodeVo;
+    200: ResultJudgeInfo;
 };
 
-export type RunCodeResponse = RunCodeResponses[keyof RunCodeResponses];
+export type RunWithJudgeResponse = RunWithJudgeResponses[keyof RunWithJudgeResponses];
 
 export type BackfillVerdictData = {
     body?: never;
@@ -1808,7 +1862,7 @@ export type BackfillVerdictResponses = {
     /**
      * OK
      */
-    200: BaseResponseInteger;
+    200: ResultInteger;
 };
 
 export type BackfillVerdictResponse = BackfillVerdictResponses[keyof BackfillVerdictResponses];
@@ -1824,10 +1878,28 @@ export type ListSubmissionByPageResponses = {
     /**
      * OK
      */
-    200: BaseResponsePageSubmissionVo;
+    200: ResultPageSubmissionVo;
 };
 
 export type ListSubmissionByPageResponse = ListSubmissionByPageResponses[keyof ListSubmissionByPageResponses];
+
+export type GetSubmissionVoByIdData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/submission/{id}/vo';
+};
+
+export type GetSubmissionVoByIdResponses = {
+    /**
+     * OK
+     */
+    200: ResultSubmissionVo;
+};
+
+export type GetSubmissionVoByIdResponse = GetSubmissionVoByIdResponses[keyof GetSubmissionVoByIdResponses];
 
 export type ListVerdictOptionsData = {
     body?: never;
@@ -1840,7 +1912,7 @@ export type ListVerdictOptionsResponses = {
     /**
      * OK
      */
-    200: BaseResponseListMapStringString;
+    200: ResultListMapStringString;
 };
 
 export type ListVerdictOptionsResponse = ListVerdictOptionsResponses[keyof ListVerdictOptionsResponses];
@@ -1849,7 +1921,7 @@ export type GetBestSubmissionData = {
     body?: never;
     path?: never;
     query: {
-        questionId: number;
+        questionId: string;
     };
     url: '/submission/best';
 };
@@ -1858,7 +1930,7 @@ export type GetBestSubmissionResponses = {
     /**
      * OK
      */
-    200: BaseResponseSubmissionVo;
+    200: ResultSubmissionVo;
 };
 
 export type GetBestSubmissionResponse = GetBestSubmissionResponses[keyof GetBestSubmissionResponses];

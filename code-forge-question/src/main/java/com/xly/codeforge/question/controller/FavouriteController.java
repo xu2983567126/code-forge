@@ -1,11 +1,11 @@
 package com.xly.codeforge.question.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.xly.codeforge.common.common.BaseResponse;
+import com.xly.codeforge.common.common.Result;
 import com.xly.codeforge.common.common.ErrorCode;
-import com.xly.codeforge.common.common.ResultUtils;
+import com.xly.codeforge.common.exception.BusinessAssert;
+import com.xly.codeforge.common.utils.ResultUtils;
 import com.xly.codeforge.common.exception.BusinessException;
-import com.xly.codeforge.common.exception.ThrowUtils;
 import com.xly.codeforge.model.dto.questionbankfavourite.QuestionBankFavouriteRequest;
 import com.xly.codeforge.model.dto.questionfavourite.QuestionFavouriteQueryRequest;
 import com.xly.codeforge.model.entity.User;
@@ -61,9 +61,9 @@ public class FavouriteController {
      * @return 1-已收藏 -1-已取消（切换式语义，见类注释）
      */
     @PostMapping("/question-favourite/{questionId}")
-    public BaseResponse<Integer> favouriteQuestion(@PathVariable("questionId") long questionId,
-                                                   HttpServletRequest request) {
-        ThrowUtils.throwIf(questionId <= 0, ErrorCode.PARAMS_ERROR);
+    public Result<Integer> favouriteQuestion(@PathVariable("questionId") long questionId,
+                                             HttpServletRequest request) {
+        BusinessAssert.isTrue(questionId > 0, ErrorCode.INVALID_ID);
         User loginUser = userFeignClient.getLoginUser(request);
         return ResultUtils.success(questionFavouriteService.toggleFavourite(questionId, loginUser));
     }
@@ -74,9 +74,9 @@ public class FavouriteController {
      * <p>{@code DELETE /question-favourite/{questionId}}</p>
      */
     @DeleteMapping("/question-favourite/{questionId}")
-    public BaseResponse<Integer> unfavouriteQuestion(@PathVariable("questionId") long questionId,
-                                                     HttpServletRequest request) {
-        ThrowUtils.throwIf(questionId <= 0, ErrorCode.PARAMS_ERROR);
+    public Result<Integer> unfavouriteQuestion(@PathVariable("questionId") long questionId,
+                                               HttpServletRequest request) {
+        BusinessAssert.isTrue(questionId > 0, ErrorCode.INVALID_ID);
         User loginUser = userFeignClient.getLoginUser(request);
         return ResultUtils.success(questionFavouriteService.toggleFavourite(questionId, loginUser));
     }
@@ -87,11 +87,9 @@ public class FavouriteController {
      * <p>{@code POST /question-favourite/my/list/page/vo}</p>
      */
     @PostMapping("/question-favourite/my/list/page/vo")
-    public BaseResponse<Page<QuestionVO>> listMyFavouriteQuestion(
-            @RequestBody QuestionFavouriteQueryRequest queryRequest, HttpServletRequest request) {
-        if (queryRequest == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+    public Result<Page<QuestionVO>> listMyFavouriteQuestion(
+        @RequestBody QuestionFavouriteQueryRequest queryRequest, HttpServletRequest request) {
+        BusinessAssert.notNull(queryRequest, ErrorCode.EMPTY_REQUEST_ERROR);
         User loginUser = userFeignClient.getLoginUser(request);
         return ResultUtils.success(questionFavouriteService.pageMyFavouriteQuestion(queryRequest, loginUser));
     }
@@ -106,8 +104,8 @@ public class FavouriteController {
      * <p>{@code POST /question-bank-favourite/{bankId}}</p>
      */
     @PostMapping("/question-bank-favourite/{bankId}")
-    public BaseResponse<Integer> favouriteBank(@PathVariable("bankId") long bankId, HttpServletRequest request) {
-        ThrowUtils.throwIf(bankId <= 0, ErrorCode.PARAMS_ERROR);
+    public Result<Integer> favouriteBank(@PathVariable("bankId") long bankId, HttpServletRequest request) {
+        BusinessAssert.isTrue(bankId > 0, ErrorCode.INVALID_ID);
         User loginUser = userFeignClient.getLoginUser(request);
         return ResultUtils.success(questionBankFavouriteService.toggleFavourite(bankId, loginUser));
     }
@@ -118,9 +116,9 @@ public class FavouriteController {
      * <p>{@code DELETE /question-bank-favourite/{bankId}}</p>
      */
     @DeleteMapping("/question-bank-favourite/{bankId}")
-    public BaseResponse<Integer> unfavouriteBank(@PathVariable("bankId") long bankId,
-                                                 HttpServletRequest request) {
-        ThrowUtils.throwIf(bankId <= 0, ErrorCode.PARAMS_ERROR);
+    public Result<Integer> unfavouriteBank(@PathVariable("bankId") long bankId,
+                                           HttpServletRequest request) {
+        BusinessAssert.isTrue(bankId > 0, ErrorCode.INVALID_ID);
         User loginUser = userFeignClient.getLoginUser(request);
         return ResultUtils.success(questionBankFavouriteService.toggleFavourite(bankId, loginUser));
     }
@@ -131,11 +129,9 @@ public class FavouriteController {
      * <p>{@code POST /question-bank-favourite/my/list/page/vo}</p>
      */
     @PostMapping("/question-bank-favourite/my/list/page/vo")
-    public BaseResponse<Page<QuestionBankVO>> listMyFavouriteBank(
-            @RequestBody QuestionBankFavouriteRequest queryRequest, HttpServletRequest request) {
-        if (queryRequest == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+    public Result<Page<QuestionBankVO>> listMyFavouriteBank(
+        @RequestBody QuestionBankFavouriteRequest queryRequest, HttpServletRequest request) {
+        BusinessAssert.notNull(queryRequest, ErrorCode.EMPTY_REQUEST_ERROR);
         User loginUser = userFeignClient.getLoginUser(request);
         return ResultUtils.success(questionBankFavouriteService.pageMyFavouriteBank(queryRequest, loginUser));
     }

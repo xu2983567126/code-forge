@@ -7,7 +7,6 @@ import org.springframework.beans.BeanUtils;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.Date;
-import java.util.List;
 
 /**
  * 题单视图对象
@@ -94,10 +93,8 @@ public class QuestionBankVO implements Serializable {
      */
     private UserVO userVO;
 
-    /**
-     * 题单内题目分页（仅详情接口按需填充）
-     */
-    private List<QuestionVO> questionList;
+    // 题单内题目走独立分页接口（GET/POST /question-bank-question/{id}/questions），
+    // 详情接口只回元信息与计数 —— 题目数量没有上限，塞进详情会把响应撑爆。
 
     @Serial
     private static final long serialVersionUID = 1L;

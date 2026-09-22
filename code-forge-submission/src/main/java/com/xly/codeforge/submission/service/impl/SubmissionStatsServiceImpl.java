@@ -1,7 +1,8 @@
 package com.xly.codeforge.submission.service.impl;
 
 import com.xly.codeforge.common.common.ErrorCode;
-import com.xly.codeforge.common.exception.ThrowUtils;
+import com.xly.codeforge.common.exception.BusinessAssert;
+import com.xly.codeforge.model.dto.QuestionSubmissionStatsDTO;
 import com.xly.codeforge.model.dto.SubmissionStatsItemDTO;
 import com.xly.codeforge.model.dto.dashboard.SubmissionStatsDTO;
 import com.xly.codeforge.model.dto.dashboard.UserHeatmapDTO;
@@ -83,10 +84,10 @@ public class SubmissionStatsServiceImpl implements SubmissionStatsService {
 
     @Override
     public UserHeatmapDTO loadHeatmap(Long userId, int days) {
-        ThrowUtils.throwIf(userId == null || userId <= 0, ErrorCode.PARAMS_ERROR);
+        BusinessAssert.positive(userId, ErrorCode.PARAMS_ERROR);
         // 收敛到 [1, 365]：days 来自前端 query 参数，不收敛的话
         // 传 days=100000 会让下面的日期循环造出十万个格子
-        int window = Math.min(Math.max(days, 1), MAX_HEATMAP_DAYS);
+        int window = Math.clamp(days, 1, MAX_HEATMAP_DAYS);
 
         LocalDate today = LocalDate.now();
         LocalDate startDate = today.minusDays(window - 1L);
@@ -111,19 +112,27 @@ public class SubmissionStatsServiceImpl implements SubmissionStatsService {
 
     @Override
     public List<SubmissionStatsItemDTO> listStatsByUserIds(List<Long> userIds) {
-        if (userIds == null || userIds.isEmpty()) {
-            // 不抛异常而是返回空列表：这是「批量查询恰好没有目标」的正常情况，
-            // 与「参数非法」不同。调用方（用户列表）会自行补 0。
+        return submissionMapper.selectStatsByUserIds(listDistinctIds(userIds));
+    }
+
+    @Override
+    public List<QuestionSubmissionStatsDTO> listStatsByQuestionIds(List<Long> questionIds) {
+        return submissionMapper.selectStatsByQuestionIds(listDistinctIds(questionIds));
+    }
+
+    private List<Long> listDistinctIds(List<Long> Ids) {
+        if (Ids == null || Ids.isEmpty()) {
+            // 批量查询没有目标属正常情况，返回空列表而非抛异常
             return new ArrayList<>();
         }
-        List<Long> distinctIds = userIds.stream()
+        List<Long> distinctIds = Ids.stream()
                 .filter(id -> id != null && id > 0)
                 .distinct()
                 .collect(Collectors.toList());
         if (distinctIds.isEmpty()) {
             return new ArrayList<>();
         }
-        return submissionMapper.selectStatsByUserIds(distinctIds);
+        return distinctIds;
     }
 
     /**

@@ -9,11 +9,11 @@ import com.xly.codeforge.model.entity.User;
 import com.xly.codeforge.model.vo.QuestionAdjacentVO;
 import com.xly.codeforge.model.vo.QuestionVO;
 
+import java.util.List;
+
 /**
  * 题目服务
  *
- * @author <a href="https://github.com/liyupi">程序员鱼皮</a>
- * @from <a href="https://yupi.icu">编程导航知识星球</a>
  */
 public interface QuestionService extends IService<Question> {
 
@@ -67,6 +67,17 @@ public interface QuestionService extends IService<Question> {
      * @return
      */
     Page<QuestionVO> getQuestionVOPage(Page<Question> questionPage, User loginUser);
+
+    /**
+     * 给题目实体回填提交统计（管理端列表用）
+     *
+     * <p>管理端列表返回的是完整实体而非 VO，但通过率的取数与 VO 路径同源 ——
+     * 都来自提交域的实时统计。填进去的值<b>只在本次响应内有效</b>，不会落库：
+     * 目标只是让「列表里不再恒显示 0%」。</p>
+     *
+     * @param questions 本页题目实体；为空时直接返回
+     */
+    void fillStatsForEntities(List<Question> questions);
 
     /**
      * 随机获取一道题目的封装（题库专题页「随机一题」用）

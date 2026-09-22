@@ -187,6 +187,37 @@
                 <artifactId>sa-token-core</artifactId>
                 <version>${sa-token.version}</version>
             </dependency>
+
+            <!-- ===== 集成测试：Testcontainers =====
+                 ⚠️ Boot 4 把核心管到 2.0.x（大版本重写、包名已变），而其 dependencyManagement
+                 不覆盖 mysql/junit-jupiter 等模块 —— 放任不管会混出「核心 2.0 + 模块 1.x」的
+                 必炸组合。这里逐个显式钉在 1.21.4（1.x 最后一版，经典 API），整体对齐；
+                 等要升 2.x 时必须全组一起换。 -->
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers</artifactId>
+                <version>1.21.4</version>
+            </dependency>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>jdbc</artifactId>
+                <version>1.21.4</version>
+            </dependency>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>database-commons</artifactId>
+                <version>1.21.4</version>
+            </dependency>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>mysql</artifactId>
+                <version>1.21.4</version>
+            </dependency>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>junit-jupiter</artifactId>
+                <version>1.21.4</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 

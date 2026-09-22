@@ -11,6 +11,7 @@ import ManageQuestion from '@/views/question/ManageQuestion.vue'
 import Questions from '@/views/question/Questions.vue'
 import ViewQuestion from '@/views/question/ViewQuestion.vue'
 import Submissions from '@/views/question/Submissions.vue'
+import SubmissionDetail from '@/views/submission/SubmissionDetail.vue'
 import QuestionBanks from '@/views/question/QuestionBanks.vue'
 import QuestionBankDetail from '@/views/question/QuestionBankDetail.vue'
 import UserManage from '@/views/user/UserManage.vue'
@@ -77,6 +78,15 @@ export const routes = [
         }
       },
       {
+        path: 'submissions/:id',
+        name: '提交详情',
+        component: SubmissionDetail,
+        meta: {
+          access: ACCESS_ENUM.USER,
+          hideInMenu: true
+        }
+      },
+      {
         path: 'hide',
         name: '隐藏页面',
         component: Home,
@@ -118,7 +128,7 @@ export const routes = [
         }
       },
       {
-        path: 'questions/:id/view',
+        path: 'questions/:id/view/:tab?',
         name: '在线做题',
         component: ViewQuestion,
         props: true,

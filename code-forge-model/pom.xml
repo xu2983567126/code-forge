@@ -46,6 +46,17 @@
             <groupId>com.xly</groupId>
             <artifactId>code-forge-common</artifactId>
         </dependency>
+
+        <!-- 测试：枚举映射与 VO 转换的单元测试（AssertJ 随 starter-test 提供，test 作用域不外泄） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
     </dependencies>
 
 </project>

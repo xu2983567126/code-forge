@@ -5,6 +5,9 @@
 @import "./styles/sidebar-menu.css";
 
 @source "./**/*.{vue,ts,js}";
+/* 测试文件里的类名只是样例字符串（例如颜色契约测试断言扫描器能抓到 "text-red-600"），
+ * 不是真实使用；Tailwind 按文本扫描，不排除它们就会把违规类生成进产物。 */
+@source not "./**/*.{spec,test}.ts";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -22,10 +25,8 @@
     --vis-text-color: var(--muted-foreground);
   }
 
-  /* Canonical Markdown contract. Both `.markdown-block` and the
-   * management-local `.prose` selector map to the same rules so the
-   * two apps cannot drift apart. See docs/SHARED_TYPOGRAPHY_DESIGN.md §8
-   * for the design contract. */
+  /* Markdown 落版契约：`.markdown-block` 是规范类，`.prose` 是历史别名，
+   * 两者映射到同一组规则。见 docs/设计契约-Garden设计系统.md §5。 */
   .markdown-block,
   .prose {
     display: block;
@@ -709,7 +710,7 @@
   --scrollbar-thumb-active: var(--solarized-base0);
 }
 
-/* Garden app-wide surface treatments (see docs/GARDEN_DESIGN_SPEC.md §5).
+/* Garden app-wide surface treatments (see docs/设计契约-Garden设计系统.md §7).
  * `.paper-texture-overlay` is mounted once per app root; the grain sits above
  * content but never intercepts pointers. */
 .paper-texture-overlay {

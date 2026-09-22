@@ -6,6 +6,8 @@ spring:
     nacos:
       discovery:
         server-addr: 127.0.0.1:8848
+        username: nacos
+        password: 123456
   # 数据库配置（todo 按本机实际情况替换）
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -26,6 +28,8 @@ server:
     context-path: /api/user
 
 mybatis-plus:
+  # 原生 SQL 抽到 src/main/resources/mapper/*.xml；注解方式仍照常用，两者互补。
+  mapper-locations: classpath*:/mapper/**/*.xml
   configuration:
     # true：DB 列 snake_case（user_id）自动映射到 Java 字段驼峰（userId）。
     # Java 侧字段名 / VO / DTO / 前端 JSON 保持驼峰不变。

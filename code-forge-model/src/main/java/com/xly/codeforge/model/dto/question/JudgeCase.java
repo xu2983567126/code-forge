@@ -15,7 +15,8 @@ public class JudgeCase {
     private String input;
 
     /**
-     * 输出用例
+     * 期望输出（标准答案）。判题链路以此与用户程序的实际输出比对。
+     * 命名刻意与沙箱/返回侧的 {@code output}（用户实际输出）区分，避免"以为 output 是用户输出"的误读陷阱。
      */
-    private String output;
+    private String expectedOutput;
 }

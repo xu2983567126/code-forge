@@ -8,8 +8,8 @@ import com.xly.codeforge.model.enums.RoleEnum;
 import com.xly.codeforge.model.vo.UserVO;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.BeanUtils;
-import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.service.annotation.GetExchange;
+import org.springframework.web.service.annotation.HttpExchange;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
@@ -17,10 +17,8 @@ import java.util.List;
 /**
  * 用户服务
  *
- * @author <a href="https://github.com/liyupi">程序员鱼皮</a>
- * @from <a href="https://yupi.icu">编程导航知识星球</a>
  */
-@FeignClient(name = "code-forge-user", path = "/api/user/inner")
+@HttpExchange("http://code-forge-user/api/user/inner")
 public interface UserFeignClient {
 
     /**
@@ -29,7 +27,7 @@ public interface UserFeignClient {
      * @param userId
      * @return
      */
-    @GetMapping("/get/id")
+    @GetExchange("/get/id")
     User getById(@RequestParam("userId") long userId);
 
     /**
@@ -38,7 +36,7 @@ public interface UserFeignClient {
      * @param idList
      * @return
      */
-    @GetMapping("/get/ids")
+    @GetExchange("/get/ids")
     List<User> listByIds(@RequestParam("idList") List<Long> idList);
 
     /**

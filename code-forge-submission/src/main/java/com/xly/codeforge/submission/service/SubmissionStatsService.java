@@ -1,5 +1,6 @@
 package com.xly.codeforge.submission.service;
 
+import com.xly.codeforge.model.dto.QuestionSubmissionStatsDTO;
 import com.xly.codeforge.model.dto.SubmissionStatsItemDTO;
 import com.xly.codeforge.model.dto.dashboard.SubmissionStatsDTO;
 import com.xly.codeforge.model.dto.dashboard.UserHeatmapDTO;
@@ -42,4 +43,15 @@ public interface SubmissionStatsService {
      * @return 每个用户的统计
      */
     List<SubmissionStatsItemDTO> listStatsByUserIds(List<Long> userIds);
+
+    /**
+     * 批量统计若干题目的提交数与通过数（题库列表 / 题目详情用）
+     *
+     * <p>一次 SQL 覆盖整页题目。返回结果<b>只包含有提交记录的题目</b>，
+     * 调用方需给缺行补 0。</p>
+     *
+     * @param questionIds 题目 id 列表；为空时返回空列表
+     * @return 每道题的统计
+     */
+    List<QuestionSubmissionStatsDTO> listStatsByQuestionIds(List<Long> questionIds);
 }

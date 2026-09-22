@@ -12,7 +12,7 @@
 -- 内容 = 老基线（6 张表）+ 以下两处合并：
 --   ① upgrade.sql §1 的 `user.uk_account` 唯一索引 —— 直接并入基线
 --   ② upgrade.sql §3 的 3 张题单表（question_bank / question_bank_question / question_favourite）
---      以及 question.difficulty、question_submit.verdict 两列 —— 直接并入基线
+--      以及 question.difficulty、submission.verdict 两列 —— 直接并入基线
 --
 -- ⚠️ 列名风格（2026-09-17 变更）：
 --   本基线已统一为 **snake_case**（原基线是 camelCase）。
@@ -76,10 +76,11 @@ create table if not exists `question`
     `tags`         varchar(1024)                      null comment '标签列表（json 数组）',
     `answer`       text                               null comment '题目答案',
     `difficulty`   varchar(50) default '简单'          not null comment '难度：简单/中等/困难',
-    `submit_num`   int         default 0              not null comment '题目提交数',
-    `accepted_num` int         default 0              not null comment '题目通过数',
     `judge_case`   text                               null comment '判题用例（json 数组）',
     `judge_config` text                               null comment '判题配置（json 对象）',
+    `spj_code`     text                               null comment '特判程序源码（compareMode=SPJ 时由沙箱执行）',
+    `spj_language` varchar(40)                        null comment '特判程序语言，对齐 submission.language 取值',
+    `code_template` text                              null comment '判题代码模板（编辑器预置骨架，用户可见）',
     `thumb_num`    int         default 0              not null comment '点赞数',
     `favour_num`   int         default 0              not null comment '收藏数',
     `user_id`      bigint                             not null comment '创建用户 id',
@@ -92,18 +93,21 @@ create table if not exists `question`
 
 -- ------------------------------------------------------------
 -- 题目提交表
--- verdict: 判题结果冗余列。status 只有 4 值，而 JudgeInfoMessageEnum 有 10 种。
---          仅当 status = 2（SUCCEED）时 verdict 才有意义；status = 3 时为 SYSTEM_ERROR。
+-- verdict: 判题结果列。status 只有 4 值，verdict 描述「代码本身」的结论（ACCEPTED/WRONG_ANSWER/...）。
+--          取值见 VerdictEnum（唯一真相源，刻意不落表）；status = 2 时才有意义，status = 3 时为 SYSTEM_ERROR。
 --          由判题服务写入（沙箱只回传执行事实，不做 verdict 判定）。
 -- ------------------------------------------------------------
-create table if not exists `question_submit`
+create table if not exists `submission`
 (
     `id`          bigint auto_increment comment 'id' primary key,
     `language`    varchar(128)                       not null comment '编程语言',
     `code`        text                               not null comment '用户代码',
-    `judge_info`  text                               null comment '判题信息（json 对象）',
+    `judge_info`  mediumtext                         null comment '判题信息（json 对象）',
     `status`      int      default 0                 not null comment '判题状态（0 - 待判题、1 - 判题中、2 - 成功、3 - 失败）',
     `verdict`     varchar(50)                        null comment '判题结果：ACCEPTED/WRONG_ANSWER/...（status=2 时有意义）',
+    `generation`  bigint   default 1                 not null comment '判题代次号：每次抢占/回收 +1，用于 fencing',
+    `current_attempt_id` varchar(40)                 null comment '本次判题 worker 的 UUID',
+    `judging_lease_expires_at` datetime(3)           null comment '判题租约过期时间（DB 时钟）',
     `question_id` bigint                             not null comment '题目 id',
     `user_id`     bigint                             not null comment '创建用户 id',
     `create_time` datetime default CURRENT_TIMESTAMP not null comment '创建时间',
@@ -111,57 +115,9 @@ create table if not exists `question_submit`
     `is_delete`   tinyint  default 0                 not null comment '是否删除',
     index `idx_question_id` (`question_id`),
     index `idx_user_id` (`user_id`),
-    index `idx_status_verdict` (`status`, `verdict`)
+    index `idx_status_verdict` (`status`, `verdict`),
+    index `idx_lease_expiry` (`status`, `judging_lease_expires_at`)
 ) comment '题目提交';
-
-
--- ------------------------------------------------------------
--- 帖子表
--- ⚠️ post / post_thumb / post_favour 三张表来自鱼皮原版教程的社区模块。
---    本微服务项目**没有对应的 Java 实体/Service/Controller**（实测 0 文件），
---    表内亦无数据。保留是为了不破坏老库结构、并给将来做社区功能留位。
---    若确认不做社区功能，可整体删除这三张表。
--- ------------------------------------------------------------
-create table if not exists `post`
-(
-    `id`          bigint auto_increment comment 'id' primary key,
-    `title`       varchar(512)                       null comment '标题',
-    `content`     text                               null comment '内容',
-    `tags`        varchar(1024)                      null comment '标签列表（json 数组）',
-    `thumb_num`   int      default 0                 not null comment '点赞数',
-    `favour_num`  int      default 0                 not null comment '收藏数',
-    `user_id`     bigint                             not null comment '创建用户 id',
-    `create_time` datetime default CURRENT_TIMESTAMP not null comment '创建时间',
-    `update_time` datetime default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP comment '更新时间',
-    `is_delete`   tinyint  default 0                 not null comment '是否删除',
-    index `idx_user_id` (`user_id`)
-) comment '帖子' collate = utf8mb4_unicode_ci;
-
-
--- 帖子点赞表（硬删除，无 is_delete）
-create table if not exists `post_thumb`
-(
-    `id`          bigint auto_increment comment 'id' primary key,
-    `post_id`     bigint                             not null comment '帖子 id',
-    `user_id`     bigint                             not null comment '创建用户 id',
-    `create_time` datetime default CURRENT_TIMESTAMP not null comment '创建时间',
-    `update_time` datetime default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP comment '更新时间',
-    index `idx_post_id` (`post_id`),
-    index `idx_user_id` (`user_id`)
-) comment '帖子点赞';
-
-
--- 帖子收藏表（硬删除，无 is_delete）
-create table if not exists `post_favour`
-(
-    `id`          bigint auto_increment comment 'id' primary key,
-    `post_id`     bigint                             not null comment '帖子 id',
-    `user_id`     bigint                             not null comment '创建用户 id',
-    `create_time` datetime default CURRENT_TIMESTAMP not null comment '创建时间',
-    `update_time` datetime default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP comment '更新时间',
-    index `idx_post_id` (`post_id`),
-    index `idx_user_id` (`user_id`)
-) comment '帖子收藏';
 
 
 -- ------------------------------------------------------------
@@ -248,7 +204,7 @@ create table if not exists `question_bank_favourite`
 --   show tables;
 -- 预期：post / post_favour / post_thumb / question /
 --       question_bank / question_bank_favourite / question_bank_question /
---       question_favourite / question_submit / user
+--       question_favourite / submission / user
 --
 -- 列名风格自检（应返回 0）：
 --   SELECT COUNT(*) FROM information_schema.COLUMNS

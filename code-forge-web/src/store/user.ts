@@ -3,6 +3,13 @@ import { getLoginUser } from '@generated'
 import ACCESS_ENUM from '@/access/accessEnum'
 
 interface LoginUserState {
+  /**
+   * 当前用户 id（雪花，字符串）。
+   *
+   * 用于「这条数据是不是我的」这类前端判断（题单编辑 / 移出题目入口的显隐）。
+   * ⚠️ 保持字符串：19 位雪花转 number 会丢末位，比较结果恒为 false。
+   */
+  id?: string
   username: string
   role?: string
 }
@@ -36,6 +43,7 @@ export const useUserStore = defineStore('user', {
         // BaseResponseLoginUserVo结构: { code, data: LoginUserVo, message }
         if (res && res.data && res.data.data) {
           this.loginUser = {
+            id: res.data.data.id,
             username: res.data.data.username || '已登录用户',
             role: res.data.data.role || ACCESS_ENUM.NOT_LOGIN
           }

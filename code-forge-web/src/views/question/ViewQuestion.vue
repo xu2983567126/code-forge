@@ -1,335 +1,196 @@
 <template>
-  <div class="uc-page-stack">
-    <Card>
-      <CardContent class="p-0">
-        <!-- 加载态 -->
-        <div v-if="loading" class="space-y-4 p-6">
-          <div class="h-8 w-1/2 animate-pulse rounded bg-muted" />
-          <div class="h-64 w-full animate-pulse rounded bg-muted" />
-          <div class="h-96 w-full animate-pulse rounded bg-muted" />
-        </div>
+  <div class="uc-page-stack uc-solve-page">
+    <!--
+      三段式页头（对照 UltiCode ProblemDetailView 的 header）：
+      左=出题（返回 + 题目标题 + 难度）｜中=主操作（运行 / 提交）｜右=辅助入口。
+      两侧 `flex-1` 让中段真正居中（中段不参与伸缩）。
+    -->
+    <header
+      class="flex h-12 w-full shrink-0 items-center justify-between gap-2 rounded-md border border-border bg-background px-2.5"
+    >
+      <div class="relative z-10 flex h-full min-w-0 flex-1 items-center overflow-hidden">
+        <SolveHeaderLeft />
+      </div>
+      <div class="flex shrink-0 items-center">
+        <SolveHeaderCenter />
+      </div>
+      <div class="relative z-10 flex h-full flex-1 items-center justify-end gap-1">
+        <SolveHeaderControls />
+      </div>
+    </header>
 
-        <div v-else-if="questionDetail" class="uc-solve-split">
-          <ResizablePanelGroup
-            direction="horizontal"
-            auto-save-id="code-forge:solve-split"
-            class="h-full w-full overflow-hidden"
+    <div class="flex min-h-0 flex-1 flex-col">
+      <div
+        v-if="loading"
+        class="flex flex-1 items-center justify-center text-muted-foreground"
+      >
+        题目加载中…
+      </div>
+
+      <!-- 窄屏：一次看一个区块（tab 与路由 :tab? 同步） -->
+      <MobileSolveLayout
+        v-else-if="questionDetail && isMobile"
+        v-model:tab="mobileTab"
+      />
+
+      <ResizablePanelGroup
+        v-else-if="questionDetail"
+        direction="horizontal"
+        auto-save-id="code-forge:solve-split"
+        class="h-full w-full overflow-hidden rounded-md border border-border"
+      >
+        <!-- 左侧：题目描述 / 提交记录（提交成功后自动切到后者） -->
+        <ResizablePanel
+          :default-size="45"
+          :min-size="25"
+          class="flex min-w-0 flex-col"
+        >
+          <Tabs
+            :model-value="activeTab"
+            class="flex min-h-0 flex-1 flex-col"
+            @update:model-value="onTabChange"
           >
-            <!-- 左侧：题目详情 -->
-            <ResizablePanel
-              :default-size="45"
-              :min-size="25"
-              class="flex min-w-0 flex-col"
+            <div
+              class="flex shrink-0 items-center border-b border-border px-4 py-1.5"
             >
-              <div
-                class="flex shrink-0 items-center justify-between border-b border-border px-4 py-2"
-              >
-                <div class="flex gap-1">
-                  <button
-                    v-for="t in tabs"
-                    :key="t.key"
-                    type="button"
-                    :class="[
-                      'rounded-md px-4 py-2 text-sm transition-colors',
-                      activeTab === t.key
-                        ? 'bg-muted font-medium text-foreground'
-                        : 'text-muted-foreground hover:bg-muted/60',
-                    ]"
-                    @click="activeTab = t.key"
-                  >
-                    {{ t.label }}
-                  </button>
-                </div>
-                <Button variant="ghost" size="icon" title="刷新" @click="handleRefresh">
-                  <RefreshCw class="h-4 w-4" />
-                </Button>
-              </div>
-
-              <div class="min-h-0 flex-1 overflow-y-auto p-6">
-                <template v-if="activeTab === 'question'">
-                  <div class="mb-5 border-b border-border pb-4">
-                    <h2 class="text-2xl font-semibold">
-                      {{ questionDetail.title || "无标题" }}
-                    </h2>
-                    <div
-                      v-if="questionDetail.tags && questionDetail.tags.length"
-                      class="mt-2 flex flex-wrap gap-2"
-                    >
-                      <Badge
-                        v-for="tag in questionDetail.tags"
-                        :key="tag"
-                        variant="secondary"
-                      >
-                        {{ tag }}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <div class="mb-5 rounded-lg bg-muted p-4">
-                    <p class="mb-2 text-sm font-medium text-muted-foreground">
-                      判题条件
-                    </p>
-                    <div class="grid grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <span class="text-muted-foreground">时间限制</span>
-                        <p>{{ questionDetail.judgeConfig?.timeLimit || 1000 }}ms</p>
-                      </div>
-                      <div>
-                        <span class="text-muted-foreground">内存限制</span>
-                        <p>{{ questionDetail.judgeConfig?.memoryLimit || 128 }}KB</p>
-                      </div>
-                      <div>
-                        <span class="text-muted-foreground">堆栈限制</span>
-                        <p>{{ questionDetail.judgeConfig?.stackLimit || 128 }}KB</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="markdown-block min-h-[400px]">
-                    <MdViewer :content="questionDetail.content || ''" />
-                  </div>
-                </template>
-
-                <div
-                  v-else-if="activeTab === 'comment'"
-                  class="flex h-72 items-center justify-center text-muted-foreground"
+              <TabsList class="h-auto gap-1 bg-transparent p-0">
+                <TabsTrigger
+                  value="description"
+                  class="rounded-md px-3 py-1.5 text-sm data-[state=active]:bg-muted data-[state=active]:font-medium data-[state=active]:text-foreground"
                 >
-                  评论功能暂未实现
-                </div>
-                <div
-                  v-else
-                  class="flex h-72 items-center justify-center text-muted-foreground"
+                  题目描述
+                </TabsTrigger>
+                <TabsTrigger
+                  value="submissions"
+                  class="rounded-md px-3 py-1.5 text-sm data-[state=active]:bg-muted data-[state=active]:font-medium data-[state=active]:text-foreground"
                 >
-                  答案功能暂未实现
-                </div>
-              </div>
-            </ResizablePanel>
+                  提交记录
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
-            <ResizableHandle with-handle />
+            <TabsContent value="description" class="mt-0 flex min-h-0 flex-1 flex-col">
+              <DescriptionPanel />
+            </TabsContent>
+            <TabsContent value="submissions" class="mt-0 flex min-h-0 flex-1 flex-col">
+              <SubmissionsPanel />
+            </TabsContent>
+          </Tabs>
+        </ResizablePanel>
 
-            <!-- 右侧：代码编辑器 -->
-            <ResizablePanel
-              :default-size="55"
-              :min-size="30"
-              class="flex min-w-0 flex-col"
+        <ResizableHandle with-handle />
+
+        <!-- 右侧：代码 + 测试区域 -->
+        <ResizablePanel :default-size="55" :min-size="30" class="flex min-w-0 flex-col">
+          <CodePanel />
+
+          <!-- 测试区域：测试用例 / 测试结果 -->
+          <Tabs
+            :model-value="testTab"
+            class="flex min-h-0 flex-1 flex-col border-t border-border"
+            @update:model-value="onTestTabChange"
+          >
+            <div
+              class="flex shrink-0 items-center gap-1 border-b border-border px-4 py-1.5"
             >
-              <div
-                class="flex shrink-0 items-center justify-between border-b border-border px-4 py-2"
-              >
-                <h3 class="text-lg font-semibold">代码编辑器</h3>
-                <select
-                  v-model="selectedLanguage"
-                  class="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                  @change="handleLanguageChange"
+              <TabsList class="h-auto gap-1 bg-transparent p-0">
+                <TabsTrigger
+                  value="cases"
+                  class="rounded-md px-3 py-1.5 text-sm data-[state=active]:bg-muted data-[state=active]:font-medium data-[state=active]:text-foreground"
                 >
-                  <option
-                    v-for="opt in languageOptions"
-                    :key="opt.value"
-                    :value="opt.value"
-                  >
-                    {{ opt.label }}
-                  </option>
-                </select>
-              </div>
+                  测试用例
+                </TabsTrigger>
+                <TabsTrigger
+                  value="results"
+                  class="rounded-md px-3 py-1.5 text-sm data-[state=active]:bg-muted data-[state=active]:font-medium data-[state=active]:text-foreground"
+                >
+                  测试结果
+                </TabsTrigger>
+              </TabsList>
+              <span v-if="running" class="ml-auto text-xs text-muted-foreground">
+                沙箱运行中…
+              </span>
+            </div>
 
-              <div class="min-h-0 flex-1 p-4">
-                <div class="h-full w-full overflow-hidden rounded-md border border-border">
-                  <CodeEditor
-                    v-model="code"
-                    :language="selectedLanguage"
-                    :minimap="false"
-                  />
-                </div>
-              </div>
+            <TabsContent value="cases" class="mt-0 flex min-h-0 flex-1 flex-col">
+              <TestCasesPanel />
+            </TabsContent>
+            <TabsContent value="results" class="mt-0 flex min-h-0 flex-1 flex-col">
+              <TestResultsPanel />
+            </TabsContent>
+          </Tabs>
+        </ResizablePanel>
+      </ResizablePanelGroup>
 
-              <div class="shrink-0 border-t border-border p-3 text-center">
-                <Button size="lg" :disabled="submitting" @click="handleSubmit">
-                  提交代码
-                </Button>
-              </div>
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        </div>
-
-        <div v-else class="p-16 text-center text-muted-foreground">
-          题目不存在或加载失败
-        </div>
-      </CardContent>
-    </Card>
+      <div
+        v-else
+        class="flex flex-1 items-center justify-center text-muted-foreground"
+      >
+        题目不存在或加载失败
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
-import { useRoute } from "vue-router";
-import { toast } from "vue-sonner";
-import { RefreshCw } from "lucide-vue-next";
-import CodeEditor from "@/components/CodeEditor.vue";
-import MdViewer from "@/components/MdViewer.vue";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+/**
+ * 做题页（P1 重构后）。
+ *
+ * 本文件只做三件事：调用会话 once、注册 provide、渲染布局。
+ * 题目/运行/提交的状态与逻辑在 `solve/composables/`，各区块在 `solve/components/`。
+ *
+ * 布局策略（与上游的差异，见 docs/P1-做题页重构-方案.md 决策 B）：
+ * 单一桌面布局（可拖拽分栏，宽度由 ResizablePanelGroup 持久化），不做多种布局预设；
+ * 小屏退化沿用 CSS 覆盖，移动端专项布局在阶段 3 引入。
+ */
+import { provide } from "vue";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
-import { getQuestionVoById, submit } from "@generated";
-import type { QuestionVo } from "@generated";
+import SolveHeaderLeft from "./solve/components/SolveHeaderLeft.vue";
+import SolveHeaderCenter from "./solve/components/SolveHeaderCenter.vue";
+import SolveHeaderControls from "./solve/components/SolveHeaderControls.vue";
+import DescriptionPanel from "./solve/components/DescriptionPanel.vue";
+import SubmissionsPanel from "./solve/components/SubmissionsPanel.vue";
+import CodePanel from "./solve/components/CodePanel.vue";
+import TestCasesPanel from "./solve/components/TestCasesPanel.vue";
+import TestResultsPanel from "./solve/components/TestResultsPanel.vue";
+import MobileSolveLayout from "./solve/components/MobileSolveLayout.vue";
+import {
+  useSolveSession,
+  type SolveTab,
+  type SolveTestTab,
+} from "./solve/composables/useSolveSession";
+import { useSolveLayout } from "./solve/composables/useSolveLayout";
 
-const route = useRoute();
+const { installProviders, loading, questionDetail, activeTab, testTab, running } =
+  useSolveSession();
+const { isMobile, mobileTab } = useSolveLayout();
 
-// 题目ID
-const questionId = computed(() => route.params.id as string);
+installProviders(provide);
 
-// 响应式数据
-const loading = ref(false);
-const submitting = ref(false);
-const code = ref("");
-const questionDetail = ref<QuestionVo | null>(null);
-const activeTab = ref("question");
-const selectedLanguage = ref("java");
+/** Tabs 的 modelValue 是 string，会话里收窄成了联合类型，故在此收口。 */
+function onTabChange(value: string | number | undefined) {
+  activeTab.value = (value as SolveTab) ?? "description";
+}
 
-// 标签页
-const tabs = [
-  { key: "question", label: "题目" },
-  { key: "comment", label: "评论" },
-  { key: "answer", label: "答案" },
-];
-
-// 编程语言选项（value 既是后端枚举值，也是 Monaco 语言 id）
-const languageOptions = [
-  { label: "Java", value: "java" },
-  { label: "C++", value: "cpp" },
-  { label: "Go", value: "go" },
-  { label: "Python", value: "python" },
-  { label: "C", value: "c" },
-];
-
-// 获取题目详情
-const loadQuestionDetail = async () => {
-  if (!questionId.value) {
-    toast.error("题目ID不存在");
-    return;
-  }
-
-  loading.value = true;
-  try {
-    const questionIdNum = parseInt(questionId.value);
-    if (isNaN(questionIdNum)) {
-      toast.error("题目ID格式错误");
-      return;
-    }
-
-    const res = await getQuestionVoById({
-      path: { id: questionIdNum },
-    });
-
-    if (res.data && res.data.code === 0 && res.data.data) {
-      questionDetail.value = res.data.data;
-    } else {
-      toast.error("获取题目详情失败");
-    }
-  } catch (error) {
-    console.error("加载题目详情失败:", error);
-    toast.error("加载题目详情失败");
-  } finally {
-    loading.value = false;
-  }
-};
-
-// 处理语言切换
-const handleLanguageChange = () => {
-  const opt = languageOptions.find((o) => o.value === selectedLanguage.value);
-  toast.success(`已切换到 ${opt?.label || selectedLanguage.value}`);
-};
-
-// 提交代码
-const handleSubmit = async () => {
-  console.log("提交代码:", code.value, selectedLanguage.value);
-
-  if (!code.value || code.value.length === 0) {
-    toast.error("请先编写有效的代码");
-    return;
-  }
-
-  submitting.value = true;
-  try {
-    const result = await submit({
-      body: {
-        language: selectedLanguage.value,
-        code: code.value,
-        questionId: parseInt(questionId.value),
-      },
-    });
-
-    if (result.data && result.data.code === 0) {
-      toast.success("代码提交成功！");
-    } else {
-      toast.error(result.data?.message || "提交失败");
-    }
-  } catch (error: any) {
-    console.error("提交代码失败:", error);
-
-    if (error.response?.data?.message) {
-      toast.error(`提交失败: ${error.response.data.message}`);
-    } else {
-      toast.error("提交代码失败，请检查网络连接");
-    }
-  } finally {
-    submitting.value = false;
-  }
-};
-
-// 刷新页面
-const handleRefresh = () => {
-  loadQuestionDetail();
-  toast.info("已刷新");
-};
-
-// 组件挂载时加载题目详情
-onMounted(() => {
-  loadQuestionDetail();
-});
+function onTestTabChange(value: string | number | undefined) {
+  testTab.value = (value as SolveTestTab) ?? "cases";
+}
 </script>
 
 <style scoped>
 /**
- * 做题页分栏（L3）。
- *
- * 必须给分栏容器一个**确定高度**，两侧面板的 `overflow-y-auto` 才有意义 ——
- * 否则高度由内容撑开，滚动条会落回整页，独立滚动名存实亡。
- * 高度用视口反推：顶栏 h-14 + 页面 gutter（上下各一份）+ Card 上下边框 2px。
- * 用 `--uc-layout-page-gutter` 而不是写死数值，换 locale 时自动跟随。
- *
- * 小屏（<1024px）退化为纵向堆叠：面板组转 column、隐藏把手、清掉 reka 写在
- * 面板上的 inline flex 尺寸，让内容自然撑开、整页滚动 —— 窄屏上横向分栏两边都不可用。
- * reka 会把 `display/flex-direction/width` 直接写成 **inline style**，内联样式特异性最高，
- * 这里的每条覆盖都必须 !important。
+ * 做题页定高：页头 shrink-0，分栏区 flex-1 min-h-0 由 flex 链决定高度，
+ * 不再用 calc 硬算 —— 页头行高变化时自动跟随。
+ * 小屏（<1024px）退化逻辑与 L3 一致：面板组转 column、隐藏把手；
+ * reka 把 display/flex-direction/width 写成 inline style，覆盖必须 !important。
  */
-.uc-solve-split {
+.uc-solve-page {
   height: calc(100dvh - 3.5rem - var(--uc-layout-page-gutter) * 2 - 2px);
-  min-height: 26rem;
-}
-
-@media (max-width: 1023.98px) {
-  .uc-solve-split {
-    height: auto;
-    min-height: 0;
-  }
-
-  .uc-solve-split :deep([data-slot="resizable-panel-group"]) {
-    flex-direction: column !important;
-  }
-
-  .uc-solve-split :deep([data-slot="resizable-handle"]) {
-    display: none !important;
-  }
-
-  .uc-solve-split :deep([data-slot="resizable-panel"]) {
-    flex: none !important;
-    width: 100% !important;
-    max-width: 100% !important;
-  }
+  min-height: 34rem;
 }
 </style>

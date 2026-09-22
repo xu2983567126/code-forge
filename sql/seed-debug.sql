@@ -8,7 +8,8 @@
 --   ② user1 为新增普通测试账号（12345678）：md5("yupi12345678") = b0dd3697a192885d7c055db46155b26a
 --   ③ question_bank 原本为空，补 1 个公开题单并挂 2 道新题，供题单/仪表板功能调试。
 --   ④ 新增 2 道带 judge_case/judge_config 的题目 + 5 条覆盖各 status/verdict 的提交，供判题链路调试。
--- 幂等性：user1 用 INSERT IGNORE（已存在则跳过）；其余为追加，重复执行会+2题/+5提交/+1题单。
+-- 幂等性：user1 用 INSERT IGNORE（已存在则跳过）；第 5 步题单与关联按标题定位，重复执行不重复插入。
+--         其余为追加，重复执行会 +2 题 / +5 提交。
 -- ============================================================
 set names utf8mb4;
 use myoj;
@@ -31,7 +32,7 @@ VALUES ('两数之和',
         '["数组","哈希表"]',
         '使用哈希表记录已遍历数字的下标，O(n) 一次遍历即可。',
         '简单',
-        '[{"input":"[2,7,11,15]\\n9","output":"[0,1]"},{"input":"[3,2,4]\\n6","output":"[1,2]"}]',
+        '[{"input":"[2,7,11,15]\\n9","expectedOutput":"[0,1]"},{"input":"[3,2,4]\\n6","expectedOutput":"[1,2]"}]',
         '{"timeLimit":1000,"memoryLimit":262144,"compareMode":"TEXT"}',
         1);
 SET @q1 = LAST_INSERT_ID();
@@ -42,13 +43,13 @@ VALUES ('反转字符串',
         '["字符串","双指针"]',
         '双指针从两端向中间交换字符。',
         '简单',
-        '[{"input":"hello","output":"olleh"},{"input":"a","output":"a"}]',
+        '[{"input":"hello","expectedOutput":"olleh"},{"input":"a","expectedOutput":"a"}]',
         '{"timeLimit":1000,"memoryLimit":262144,"compareMode":"TEXT"}',
         1);
 SET @q2 = LAST_INSERT_ID();
 
 -- 4) 新增 5 条提交，覆盖 4 种 status 与典型 verdict
-INSERT INTO question_submit (language, code, judge_info, status, verdict, question_id, user_id)
+INSERT INTO submission (language, code, judge_info, status, verdict, question_id, user_id)
 VALUES
     ('java', 'class Main{ public static void main(String[] a){} }',
      '{"message":"Accepted","time":12,"memory":1024}', 2, 'ACCEPTED', @q1, 1),
@@ -61,16 +62,24 @@ VALUES
     ('java', 'class Main{ public static void main(String[] a){} }',
      '{"message":"System Error","time":0,"memory":0}', 3, 'SYSTEM_ERROR', @q1, 1);
 
--- 5) 新增 1 个公开题单，挂上面 2 道新题（question_bank 原本为空）
+-- 5) 新增 1 个公开题单，挂上面 2 道新题
+--    ⚠️ 刻意不用 @b1/@q1/@q2 会话变量：一旦脚本被拆成多次连接执行（IDE 逐句跑），
+--    变量即 NULL，而 question_bank_question.question_id 是 NOT NULL，INSERT 直接失败 ——
+--    本地库就曾这样丢掉整张关联表（题单建好了，题目数却是 0）。
+--    改成按标题定位 + INSERT IGNORE：拆着跑、合着跑、重复跑结果一致。
 INSERT INTO question_bank (title, description, user_id, is_public)
-VALUES ('入门算法题单', '适合新手的数组与字符串练习。', 2, 1);
-SET @b1 = LAST_INSERT_ID();
+SELECT '入门算法题单', '适合新手的数组与字符串练习。', 2, 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM question_bank WHERE title = '入门算法题单');
 
-INSERT INTO question_bank_question (question_bank_id, question_id, user_id)
-VALUES (@b1, @q1, 2), (@b1, @q2, 2);
+INSERT IGNORE INTO question_bank_question (question_bank_id, question_id, user_id)
+SELECT b.id, q.id, 2
+FROM question_bank b, question q
+WHERE b.title = '入门算法题单'
+  AND q.title IN ('两数之和', '反转字符串');
 
 -- 自检
 SELECT 'user' t, COUNT(*) c FROM user
 UNION ALL SELECT 'question', COUNT(*) FROM question
-UNION ALL SELECT 'question_submit', COUNT(*) FROM question_submit
+UNION ALL SELECT 'submission', COUNT(*) FROM submission
 UNION ALL SELECT 'question_bank', COUNT(*) FROM question_bank;

@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.xly.codeforge.common.common.ErrorCode;
-import com.xly.codeforge.common.exception.ThrowUtils;
+import com.xly.codeforge.common.exception.BusinessAssert;
 import com.xly.codeforge.model.dto.questionbankfavourite.QuestionBankFavouriteRequest;
 import com.xly.codeforge.model.entity.QuestionBank;
 import com.xly.codeforge.model.entity.QuestionBankFavourite;
@@ -44,8 +44,8 @@ public class QuestionBankFavouriteServiceImpl extends ServiceImpl<QuestionBankFa
 
     @Override
     public int toggleFavourite(long bankId, User loginUser) {
-        ThrowUtils.throwIf(loginUser == null || loginUser.getId() == null, ErrorCode.NOT_LOGIN_ERROR);
-        ThrowUtils.throwIf(bankId <= 0, ErrorCode.PARAMS_ERROR);
+        BusinessAssert.isTrue(loginUser != null && loginUser.getId() != null, ErrorCode.NOT_LOGIN_ERROR);
+        BusinessAssert.isTrue(bankId > 0, ErrorCode.PARAMS_ERROR);
         // 复用题单服务的读取权限校验：私有题单越权会在这里抛 404，
         // 于是「收藏他人私有题单」这条路自然被堵住，不需要另写一套判断。
         questionBankService.getQuestionBankById(bankId, loginUser);
@@ -72,11 +72,11 @@ public class QuestionBankFavouriteServiceImpl extends ServiceImpl<QuestionBankFa
 
     @Override
     public Page<QuestionBankVO> pageMyFavouriteBank(QuestionBankFavouriteRequest queryRequest, User loginUser) {
-        ThrowUtils.throwIf(loginUser == null || loginUser.getId() == null, ErrorCode.NOT_LOGIN_ERROR);
-        ThrowUtils.throwIf(queryRequest == null, ErrorCode.PARAMS_ERROR);
+        BusinessAssert.isTrue(loginUser != null && loginUser.getId() != null, ErrorCode.NOT_LOGIN_ERROR);
+        BusinessAssert.notNull(queryRequest, ErrorCode.PARAMS_ERROR);
         long current = Math.max(queryRequest.getCurrent(), 1);
         long size = queryRequest.getPageSize();
-        ThrowUtils.throwIf(size > MAX_PAGE_SIZE, ErrorCode.PARAMS_ERROR, "页大小不能超过 " + MAX_PAGE_SIZE);
+        BusinessAssert.isTrue(size <= MAX_PAGE_SIZE, ErrorCode.PARAMS_ERROR, "页大小不能超过 " + MAX_PAGE_SIZE);
 
         Long userId = loginUser.getId();
         Page<QuestionBankFavourite> favouritePage = this.page(new Page<>(current, size),
@@ -117,4 +117,5 @@ public class QuestionBankFavouriteServiceImpl extends ServiceImpl<QuestionBankFa
         voPage.setRecords(voList);
         return voPage;
     }
+    
 }
